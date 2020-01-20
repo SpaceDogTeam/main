@@ -13,7 +13,7 @@
 long initialMillis = 0; // This records the initial time, at which the program started running
 long currentMillis = 0;
 
-bool pin = 0;
+bool pin1 = 0;
 int sped = 165;
 
 /*  Functions used and their description */
@@ -25,8 +25,8 @@ void setup() {
   analogWrite(APWM_PIN, sped);     
   analogWrite(BPWM_PIN, sped);
 
-  digitalWrite(AEN_PIN, pin);
-  digitalWrite(BEN_PIN, pin);
+  digitalWrite(AEN_PIN, pin1);
+  digitalWrite(BEN_PIN, pin1);
 
   Serial.begin(115200);
 
