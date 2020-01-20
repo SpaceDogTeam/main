@@ -4,6 +4,7 @@
 
 
 //------------------------------------------------------------------------
+#define LED_PIN  4
 #define APWM_PIN  5
 #define AEN_PIN   6
 
@@ -36,6 +37,7 @@ double deg2 = 186.06;
 
 //bool motionEnabled = !false;
 bool motionEnabled = true;
+bool LED_status = false;
 
 unsigned long s = 0;
 unsigned long lastTrans = 0; 
@@ -105,7 +107,8 @@ void setup() {
 
 
   //------------------------------------------------------------------------
-  
+
+  pinMode(LED_PIN, OUTPUT);
   pinMode(APWM_PIN, OUTPUT);
   pinMode(AEN_PIN, OUTPUT);
 
@@ -401,10 +404,16 @@ void loop() {
   //Serial.print(" ");
   //Serial.println(AJointSetpoint);
   //Serial.print(" ");
-  Serial.print(AJointAng);
+  /*Serial.print(AJointAng);
   Serial.print(" ");
   Serial.println(AJointSetpoint);
-  Serial.print(" ");
+  Serial.print(" ");*/
+  
+  if (LED_status) {
+    digitalWrite(LED_PIN, LOW);
+  } else {
+    digitalWrite(LED_PIN, HIGH);
+  }
 
   /*Serial.print("DEG1:");
   Serial.print(AJointAng);

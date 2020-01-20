@@ -4,7 +4,6 @@
 
 
 //------------------------------------------------------------------------
-#define LED_PIN   4
 #define APWM_PIN  5
 #define AEN_PIN   6
 
@@ -36,7 +35,6 @@ double deg1 = 4.66;
 double deg2 = 186.06;
 
 bool motionEnabled = !false;
-bool LED_status = false;
 
 unsigned long s = 0;
 unsigned long lastTrans = 0; 
@@ -82,6 +80,11 @@ PID MotorAPID(&AJointAng, &AJointSpd, &AJointSetpoint, KpA, KiA, KdA, DIRECT);
 PID MotorBPID(&BJointAng, &BJointSpd, &BJointSetpoint, KpB, KiB, KdB, REVERSE); //setting up the PID
 
 
+int buffersize = 8;
+int bufferindex = 0;
+double bufferres [8];
+
+
 void setup() {
   pinMode(CS1,OUTPUT);//Slave#1 configuration 
   pinMode(CS2,OUTPUT);//Slave#2 configuration 
@@ -105,7 +108,7 @@ void setup() {
 
 
   //------------------------------------------------------------------------
-  pinMode(LED_PIN, OUTPUT);
+  
   pinMode(APWM_PIN, OUTPUT);
   pinMode(AEN_PIN, OUTPUT);
 
@@ -125,7 +128,22 @@ void setup() {
   MotorBPID.SetSampleTime(sampleRate);
   MotorBPID.SetOutputLimits(0,75);
 
-  reachAngle(82, 330);
+  for(int i=0; i<buffersize; i+=4)
+  {
+    Serial.println("INDEX: " + String(i));
+    reachAngle(76, 306);
+    bufferres[i] = AJointAng;
+    bufferres[i+1] = BJointAng;
+    reachAngle(89, 326);
+    bufferres[i+2] = AJointAng;
+    bufferres[i+3] = BJointAng;
+  }
+
+  for(int i=0; i<buffersize; i+=2)
+  {
+    Serial.println("ANGLE A: " + String(bufferres[i]));
+    Serial.println("ANGLE B: " + String(bufferres[i+1]));
+  }
 }
 
 
@@ -379,40 +397,6 @@ void speedControl(){
   previousBJointAng = BJointAng;
 }
 
-void moveUpper(int dir) {
-  unsigned long tSign = millis();
-
-  if (dir) {
-      digitalWrite(AEN_PIN, HIGH);
-    }
-  else {
-      digitalWrite(AEN_PIN, LOW);
-    }
-
-  while(millis() < tSign + 100) {
-      analogWrite(APWM_PIN, 165);
-  }
-  analogWrite(APWM_PIN, 0);
-  Serial.println("Moved upper");
-}
-
-void moveLower(int dir) {
-  unsigned long tSign = millis();
-
-  if (dir) {
-      digitalWrite(BEN_PIN, HIGH);
-    }
-  else {
-      digitalWrite(BEN_PIN, LOW);
-    }
-
-  while(millis() < tSign + 100) {
-      analogWrite(BPWM_PIN, 165);
-  }
-  analogWrite(BPWM_PIN, 0);
-  Serial.println("Moved lower");
-}
-
 void reachAngle(double angle1, double angle2) {
   double delta = 9999;
   AJointSetpoint = angle1;
@@ -420,7 +404,7 @@ void reachAngle(double angle1, double angle2) {
 
   unsigned long tSign = millis();
 
-  while (delta > 3 and millis() < tSign + 4000) {
+  while (delta > 5 and millis() < tSign + 1000) {
     getPosition();
     double delta1 = AJointSetpoint - AJointAng;
     double delta2 = BJointSetpoint - BJointAng;
@@ -449,77 +433,4 @@ void reachAngle(double angle1, double angle2) {
 
 
 void loop() {
-  if (Serial.available()>=2){
-    char c = ' ';
-    do{
-      c = Serial.read();
-    }while(c != '$');
-    int act = Serial.parseInt();
-
-    if (act == 5) {
-      getPosition();
-      Serial.println("Angles: ("+String(AJointAng)+", "+String(BJointAng)+")");
-    }
-    else if (act == 6) {
-      Serial.print("Switching LED ");
-      if(LED_status) {
-        Serial.println("OFF");
-        digitalWrite(LED_PIN, LOW);
-      } else {
-        Serial.println("ON");
-        digitalWrite(LED_PIN, HIGH);
-      }
-      LED_status = !LED_status;
-    }
-    else if (act == 4) {
-      moveUpper(1);
-    }
-    else if (act == 3) {
-      moveUpper(0);
-    }
-    else if (act == 2) {
-        moveLower(1);
-    }
-    else if (act == 1) {
-        moveLower(0);
-    }
-  }
-  // put your main code here, to run repeatedly:
-  //checkEnable();
-
-  //while(Serial.available()==0);
-
-  //while (motionEnabled){
-  //dropOut();
-  //getPosition();
-  //computation();
-  
-  //setPosControl();
-  //speedControl();
-
-  // for plotting purposes
-
-  //Serial.print (AJointAng);
-  //Serial.print(" ");
-  //Serial.println(AJointSetpoint);
-  //Serial.print(" ");
-  /*Serial.print(AJointAng);
-  Serial.print(" ");
-  Serial.println(AJointSetpoint);
-  Serial.print(" ");*/
-
-  /*Serial.print("DEG1:");
-  Serial.print(AJointAng);
-  Serial.print("  DEG2:");
-  Serial.print(BJointAng);
-  Serial.print("  ASPD:");
-  Serial.print(AJointSpd);
-  Serial.print("  BSPD:");
-  Serial.print(BJointSpd);
-  Serial.print("  ASP:");
-  Serial.print(AJointSetpoint);
-  Serial.print("  BSP:");
-  Serial.println(BJointSetpoint);
-  }*/
-
 }
