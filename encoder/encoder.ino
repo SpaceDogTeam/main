@@ -26,6 +26,10 @@ uint8_t temp2[1]; //  contains the LSB of the position
 float deg1 = 0.00;
 float deg2 = 0.00;
 
+int buffersize = 10;
+int bufferindex = 0;
+float ResBuffer[10];
+
 void setup()
 {
   pinMode(CS1,OUTPUT);//Slave#1 configuration 
@@ -129,7 +133,21 @@ void loop()
     Serial.print("Encoder #2 value received unchanged !      ");
     Serial.println(deg2);
    }
+   ResBuffer[bufferindex] = deg2;
    delay(1000);    //wait a bit till next check
+
+   if(bufferindex >= buffersize - 1)
+   {
+     Serial.println("Logging complete");
+
+     for(int i=0; i<buffersize; i++){
+       Serial.println(ResBuffer[i]);
+     }
+
+     while(true){};
+   }
+   bufferindex += 1;
+   Serial.println("Buffer currently storing " + String(bufferindex) + " items");
 }
 
 // float Cmd1[] = {36.39,35.77,43.41,47.55,48.69,49.31,47.46,44.12,39.02,34.10,30.76,26.98,22.59,18.19,15.03,14.41}

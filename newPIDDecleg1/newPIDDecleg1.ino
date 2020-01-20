@@ -34,7 +34,8 @@ uint8_t temp2[1]; //  contains the LSB of the position
 double deg1 = 4.66;
 double deg2 = 186.06;
 
-bool motionEnabled = !false;
+//bool motionEnabled = !false;
+bool motionEnabled = true;
 
 unsigned long s = 0;
 unsigned long lastTrans = 0; 
