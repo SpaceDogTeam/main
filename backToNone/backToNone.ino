@@ -44,5 +44,4 @@ void stop(){
   Serial.println("motion is done");
   digitalWrite(APWM_PIN, 0);
   digitalWrite(BPWM_PIN, 0);
-  
  }

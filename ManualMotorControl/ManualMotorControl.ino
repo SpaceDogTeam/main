@@ -68,7 +68,7 @@ double previousAJointAng = AJointSetpoint;
 double previousBJointAng = BJointSetpoint;
 
 // Tuning parameters
-const int sampleRate = 10; //  sampling rate
+const int sampleRate = 1; //  sampling rate
 
 int k1 = 0.8*10 , k2 = 0.9*0.3/4, k3 = 0.9*4*0;
 
@@ -125,7 +125,8 @@ void setup() {
   MotorBPID.SetSampleTime(sampleRate);
   MotorBPID.SetOutputLimits(0,75);
 
-  reachAngle(82, 330);
+  // MotorAPID.Compute();
+  //reachAngle(82, 330);
 }
 
 
@@ -239,22 +240,7 @@ void checkEnable(){
   else if (act == 0) motionEnabled = false;
 }
 
-
-//--------------------------------- Computation ---------------------------
-
-void computation(){
-  if(millis() > lastTrans+TIMEOUT ) {
-    
-    MotorAPID.Compute();
-    MotorBPID.Compute();
-    analogWrite(APWM_PIN, AJointSpd);
-    analogWrite(BPWM_PIN, BJointSpd);
-  }
-}
-
-
 //----------------------------------- SetPosControl ----------------------------------
-
 
 void setPosControl(){
   St = millis();
@@ -484,42 +470,11 @@ void loop() {
         moveLower(0);
     }
   }
-  // put your main code here, to run repeatedly:
-  //checkEnable();
 
-  //while(Serial.available()==0);
-
-  //while (motionEnabled){
-  //dropOut();
-  //getPosition();
-  //computation();
-  
-  //setPosControl();
-  //speedControl();
-
-  // for plotting purposes
-
-  //Serial.print (AJointAng);
-  //Serial.print(" ");
-  //Serial.println(AJointSetpoint);
-  //Serial.print(" ");
-  /*Serial.print(AJointAng);
-  Serial.print(" ");
-  Serial.println(AJointSetpoint);
-  Serial.print(" ");*/
-
-  /*Serial.print("DEG1:");
-  Serial.print(AJointAng);
-  Serial.print("  DEG2:");
-  Serial.print(BJointAng);
-  Serial.print("  ASPD:");
-  Serial.print(AJointSpd);
-  Serial.print("  BSPD:");
-  Serial.print(BJointSpd);
-  Serial.print("  ASP:");
-  Serial.print(AJointSetpoint);
-  Serial.print("  BSP:");
-  Serial.println(BJointSetpoint);
-  }*/
-
+  if (LED_status) {
+    digitalWrite(LED_PIN, LOW);
+  } else {
+    digitalWrite(LED_PIN, HIGH);
+  }
+  LED_status = !LED_status;
 }

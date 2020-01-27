@@ -127,6 +127,9 @@ void setup() {
   MotorBPID.SetMode(AUTOMATIC);
   MotorBPID.SetSampleTime(sampleRate);
   MotorBPID.SetOutputLimits(0,75);
+
+  MotorAPID.Compute();
+  MotorBPID.Compute();
 }
 
 
@@ -288,7 +291,7 @@ void setPosControl(){
       BJointSpd = 195;
     }
   }*/
-  while ( millis() < St + 50*1);  // wait for a while
+  //while ( millis() < St + 50*1);  // wait for a while  !NEEDS TO GO
 
   if (pathIndex <= 9){
     if ((AJointAng > theta11[pathIndex] - maxAngleMargin)) {
@@ -350,8 +353,8 @@ void speedControl(){
   if(BJointAng > BJointSetpoint) digitalWrite(BEN_PIN, !LOW);  //  change the direction of the rotation
   if(BJointAng < BJointSetpoint) digitalWrite(BEN_PIN, !HIGH);
 
-  MotorAPID.Compute();
-  MotorBPID.Compute();
+  //MotorAPID.Compute();
+  //MotorBPID.Compute();
 
   
   if (pathIndex == 10) AJointSpd = 255;
@@ -388,13 +391,13 @@ void loop() {
   
 
   //while(Serial.available()==0);
-  
+
+  Serial.println("Loop: start");
   while (motionEnabled){
  
   //dropOut();
-  getPosition();
+  //getPosition();
   //computation();
-  
   setPosControl();
   speedControl();
 
@@ -408,12 +411,13 @@ void loop() {
   Serial.print(" ");
   Serial.println(AJointSetpoint);
   Serial.print(" ");*/
-  
+
   if (LED_status) {
     digitalWrite(LED_PIN, LOW);
   } else {
     digitalWrite(LED_PIN, HIGH);
   }
+  LED_status = !LED_status;
 
   /*Serial.print("DEG1:");
   Serial.print(AJointAng);
