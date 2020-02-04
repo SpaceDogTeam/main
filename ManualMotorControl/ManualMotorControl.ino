@@ -125,7 +125,7 @@ void setup() {
   MotorBPID.SetSampleTime(sampleRate);
   MotorBPID.SetOutputLimits(0,75);
 
-  // MotorAPID.Compute();
+  MotorAPID.Compute();
   //reachAngle(82, 330);
 }
 
@@ -435,7 +435,7 @@ void reachAngle(double angle1, double angle2) {
 
 
 void loop() {
-  if (Serial.available()>=2){
+  /*if (Serial.available()>=2){
     char c = ' ';
     do{
       c = Serial.read();
@@ -469,9 +469,11 @@ void loop() {
     else if (act == 1) {
         moveLower(0);
     }
-  }
+  }*/
+  //MotorAPID.Compute();
+  //MotorBPID.Compute();
 
-  if (LED_status) {
+  if (LED_status)  {
     digitalWrite(LED_PIN, LOW);
   } else {
     digitalWrite(LED_PIN, HIGH);
