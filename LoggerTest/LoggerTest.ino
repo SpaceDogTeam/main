@@ -83,6 +83,7 @@ PID MotorBPID(&BJointAng, &BJointSpd, &BJointSetpoint, KpB, KiB, KdB, REVERSE); 
 int buffersize = 8;
 int bufferindex = 0;
 double bufferres [8];
+bool running = true;
 
 
 void setup() {
@@ -115,6 +116,8 @@ void setup() {
   pinMode(BPWM_PIN, OUTPUT);
   pinMode(BEN_PIN, OUTPUT);
 
+  DDRG = DDRG | B00100000;
+
   Serial.println("Dual Motor Leg Test : Start!");
   
   s = millis();
@@ -128,7 +131,7 @@ void setup() {
   MotorBPID.SetSampleTime(sampleRate);
   MotorBPID.SetOutputLimits(0,75);
 
-  for(int i=0; i<buffersize; i+=4)
+  /*for(int i=0; i<buffersize; i+=4)
   {
     Serial.println("INDEX: " + String(i));
     reachAngle(76, 306);
@@ -143,7 +146,7 @@ void setup() {
   {
     Serial.println("ANGLE A: " + String(bufferres[i]));
     Serial.println("ANGLE B: " + String(bufferres[i+1]));
-  }
+  }*/
 }
 
 
@@ -305,7 +308,7 @@ void setPosControl(){
       BJointSpd = 195;
     }
   }*/
-  while ( millis() < St + 50*1);  // wait for a while
+  //while ( millis() < St + 50*1);  // wait for a while
 
   if (pathIndex <= 9){
     if ((AJointAng > theta11[pathIndex] - maxAngleMargin)) {
@@ -433,4 +436,13 @@ void reachAngle(double angle1, double angle2) {
 
 
 void loop() {
+  while(running){
+      unsigned long looptimer = micros();
+      //getPosition();
+      setPosControl();
+      speedControl();
+
+      PORTG = PORTG ^ B00100000;
+      while(micros() < looptimer + 1000);
+  }
 }
