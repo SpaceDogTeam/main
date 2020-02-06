@@ -99,7 +99,7 @@ class App:
 def main():
     global root
     ser = serial.Serial()
-    ser.port = 'COM6'
+    ser.port = '/dev/ttyACM1'
     ser.baudrate = 9600
     ser.timeout = 0
     # open port if not already open
