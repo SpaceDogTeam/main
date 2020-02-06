@@ -31,7 +31,7 @@ def PIDTuning():
 
 Xcoords, Ycoords = SineComp()
 #Xcoords, Ycoords = PIDTuning()
-with open("PIDTuning3.txt", 'r') as file:
+with open("Dataset7.txt", 'r') as file:
     Mcoords_l = file.read()
     file.close()
 

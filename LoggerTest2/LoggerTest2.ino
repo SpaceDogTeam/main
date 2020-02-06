@@ -54,7 +54,7 @@ int tLength = 15;
 
 //------------------------------------    PID control variables --------------------------------------
 
-uint16_t maxAngleMargin = 0.5;
+double maxAngleMargin = 1;
 double AJointSpd, BJointSpd;  // output variables to themotor
 double AJointAng, BJointAng;  // actual angular position of the joints received from the encoders
 double AJointSetpoint, BJointSetpoint, AJointSetpointOld, BJointSetpointOld;
@@ -251,8 +251,8 @@ void speedControl(){
   MotorBPID.Compute();
 
   AJointSpd = abs(AJointSpd) +175;
-  if ( BJointSpd == -1 ){
-      
+  if (BJointSetpoint - maxAngleMargin < BJointAng and BJointAng < BJointSetpoint + maxAngleMargin){
+    BJointSpd = 0;
   } 
   else BJointSpd = (BJointSpd) +180;
 

@@ -54,7 +54,8 @@ int tLength = 15;
 
 //------------------------------------    PID control variables --------------------------------------
 
-uint16_t maxAngleMargin = 0.5;
+//uint16_t maxAngleMargin = 0.5;
+double maxAngleMargin = 1;
 double AJointSpd, BJointSpd;  // output variables to themotor
 double AJointAng, BJointAng;  // actual angular position of the joints received from the encoders
 double AJointSetpoint, BJointSetpoint, AJointSetpointOld, BJointSetpointOld;
@@ -66,9 +67,9 @@ const int sampleRate = 10; //  sampling rate
 
 int k1 = 0.8*10 , k2 = 1, k3 = 1;
 
-double KpA=k1*3,  KpB=0;  //Initial Proportional Gain 
-double KiA=k3*10/10,  KiB=0;  //Initial Integral Gain 
-double KdA=k2*5,  KdB=0;  //Initial Differential Gain 
+double KpA=k1*3,  KpB=1;  //Initial Proportional Gain 
+double KiA=k3*10/10,  KiB=5;  //Initial Integral Gain 
+double KdA=k2*5,  KdB=6;  //Initial Differential Gain 
 
 
 // Instantiate X and Y axis PID controls.
