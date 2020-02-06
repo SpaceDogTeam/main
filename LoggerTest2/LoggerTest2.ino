@@ -226,6 +226,7 @@ void getPosition(){
 
 void setPosControl(){
   double sin_val = 9 * sin(2*Pi* (cur_iter+2.5) / (10 * 100)) + 85;
+  sin_val = round(sin_val);
   
   AJointSetpoint = 306;
   BJointSetpoint = sin_val;
@@ -271,6 +272,7 @@ void loop() {
       bufferindex+=1;
   }
 
+  Serial.println("MEASUREMENTS");
   for(int i=0; i<buffersize; i+=1)
   {
     Serial.println(String(bufferres[i]));

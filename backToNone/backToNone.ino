@@ -38,7 +38,7 @@ void loop() {
   currentMillis = -initialMillis + millis();
   if (currentMillis > 4*1000)  {
     stop();
-  }
+  } 
 }
 void stop(){
   Serial.println("motion is done");

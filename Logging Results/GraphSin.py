@@ -8,9 +8,9 @@ Xcoords = []
 Ycoords = []
 for elem in range(iterations):
     Xcoords += [elem*samplerate*0.001]
-    Ycoords += [9 * sin(2 * pi * (Xcoords[elem]+2.5) / 10) + 85]
+    Ycoords += [round(9 * sin(2 * pi * (Xcoords[elem]+2.5) / 10) + 85)]
 
-with open("Dataset1.txt", 'r') as file:
+with open("Dataset5.txt", 'r') as file:
     Mcoords_l = file.read()
     file.close()
 
