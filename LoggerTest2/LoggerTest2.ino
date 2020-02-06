@@ -49,13 +49,9 @@ uint16_t ABSposition2 = 0;
 uint16_t ABSposition_last2 = 0;
 
 //-----------------------------------------------------------------------
-double theta21[] = {85.0, 88.7, 91.7, 93.6, 94.0, 92.8, 90.3, 86.9, 83.1, 79.7, 77.2, 76.0, 76.4, 78.3, 81.3};
-double theta11[] = {306, 306, 306, 306, 306, 306, 306, 306, 306, 306, 306, 306, 306, 306, 306};
 
 int tLength = 15;
 
-int pathIndex = 0;
-int pathIndex2 = 0;
 //------------------------------------    PID control variables --------------------------------------
 
 uint16_t maxAngleMargin = 0.5;
@@ -66,7 +62,7 @@ double previousAJointAng = AJointSetpoint;
 double previousBJointAng = BJointSetpoint;
 
 // Tuning parameters
-const int sampleRate = 400; //  sampling rate
+const int sampleRate = 10; //  sampling rate
 
 int k1 = 0.8*10 , k2 = 0.9*0.3/4, k3 = 0.9*4*0;
 
@@ -79,10 +75,11 @@ double KdA=k2*5,  KdB=0.1*1;  //Initial Differential Gain
 PID MotorAPID(&AJointAng, &AJointSpd, &AJointSetpoint, KpA, KiA, KdA, DIRECT); 
 PID MotorBPID(&BJointAng, &BJointSpd, &BJointSetpoint, KpB, KiB, KdB, REVERSE); //setting up the PID
 
-
-int buffersize = 15;
+const float Pi = 3.14159;
+int buffersize = 1000;
 int bufferindex = 0;
-double bufferres [15];
+double bufferres [1000];
+int cur_iter = 0;
 bool running = true;
 
 
@@ -223,125 +220,16 @@ void getPosition(){
    BJointAng = deg2 ;
 }
 
-//------------------------ checkEnable -----------------------------------
-
-void checkEnable(){
-  int act = 0;
-  if (Serial.available()>=2){
-    char c = ' ';
-    do{
-      c = Serial.read();
-    }while(c != '$'); // reads the incoming stream until he catches '$' which is the beginning of incoming data
-    act = Serial.parseInt();
-    Serial.print("received boolean ");
-    Serial.println(act);
-    lastTrans = millis(); //  keeps track of the time he received the packet
-    
-  
-  }
-  if (act == 1) motionEnabled = true;
-  else if (act == 0) motionEnabled = false;
-}
-
-
-//--------------------------------- Computation ---------------------------
-
-void computation(){
-  if(millis() > lastTrans+TIMEOUT ) {
-    
-    MotorAPID.Compute();
-    MotorBPID.Compute();
-    analogWrite(APWM_PIN, AJointSpd);
-    analogWrite(BPWM_PIN, BJointSpd);
-  }
-}
-
 
 //----------------------------------- SetPosControl ----------------------------------
 
 
 void setPosControl(){
-  St = millis();
+  double sin_val = 9 * sin(2*Pi* (cur_iter+2.5) / (10 * 100)) + 85;
   
-
-  //Serial.print("pathIndexes A and B are : ");
-  //Serial.println(String(pathIndex) + "," + String(pathIndex2));
-
-  
-  if (pathIndex2 <= 9){
-    if ((BJointAng < theta21[pathIndex2] + 1*maxAngleMargin)) {
-      pathIndex2 += 1;
-      //Serial.println("pathIndex has changed: path 1B" + String (theta21[pathIndex2]));
-    }
-  }
-
-  else if (pathIndex2 > 9){
-     if ((BJointAng > theta21[pathIndex2] - 1*maxAngleMargin)) {
-      pathIndex2 += 1;
-      //Serial.println("pathIndex has changed: path 2B" + String (theta21[pathIndex2]));
-    }
-    if (pathIndex2 == 14 && BJointAng > 59.9) pathIndex = 0;
-  }/*
-  else {  
-    Serial.println("path 2");
-    if (! (AJointAng >= theta11[pathIndex] + maxAngleMargin )&& ! (BJointAng <= theta21[pathIndex] -maxAngleMargin) ) {
-      pathIndex +=1;
-      Serial.println("pathIndex has changed: path 2");
-      AJointSpd = 195;
-      BJointSpd = 195;
-    }
-  }*/
-  //while ( millis() < St + 50*1);  // wait for a while
-
-  if (pathIndex <= 9){
-    if ((AJointAng > theta11[pathIndex] - maxAngleMargin)) {
-      pathIndex += 1;
-      //Serial.println("pathIndex has changed: path 1A" + String (theta11[pathIndex]));
-    }
-  }
-
-  else if (pathIndex > 9){
-     if ((AJointAng < theta11[pathIndex] + 3*maxAngleMargin)) {
-      pathIndex += 1;
-      //Serial.println("pathIndex has changed: path 2A" + String (theta11[pathIndex]));
-    }
-    else if (pathIndex ==14){
-      Serial.println("END CYCLE");
-      //pathIndex = 0;
-    }
-  } 
-  
-
-  //pathIndex += 1;
-  
-  //pathIndex = pathIndex%15;      // sets the counter to zero after a cycle has been completed
-  pathIndex2 = pathIndex2%15;
-
-  
-/*
-  if (pathIndex == 14 && pathIndex2 == 14){
-    motionEnabled = 0;
-    //BJointSpd = 0;
-    //AJointSpd = 0;
-    pathIndex = 0;
-    pathIndex2 = 0;
-    analogWrite(APWM_PIN, AJointSpd);
-    analogWrite(BPWM_PIN, BJointSpd);
-  
-  }
-*/
-  AJointSetpoint = theta11[pathIndex];
-  BJointSetpoint = theta21[pathIndex2];
-  //AJointSetpoint = constrain(AJointSetpoint, previousAJointAng-maxAngleMargin, previousAJointAng+maxAngleMargin);
-  //BJointSetpoint = constrain(BJointSetpoint, previousBJointAng-maxAngleMargin, previousBJointAng+maxAngleMargin);
-
-    /*
-    Serial.print("AJointSetpoint : ");
-    Serial.println(AJointSetpoint);
-    Serial.print("BJointSetpoint : ");
-    Serial.println(BJointSetpoint);
-    
-    */
+  AJointSetpoint = 306;
+  BJointSetpoint = sin_val;
+  cur_iter++;
 }
 
 
@@ -357,67 +245,18 @@ void speedControl(){
   MotorAPID.Compute();
   MotorBPID.Compute();
 
-  
-  if (pathIndex == 10) AJointSpd = 255;
-  else{
   AJointSpd = abs(AJointSpd) +175;
-  }
   if ( BJointSpd == -1 ){
       
-  }
-  //if ( pathIndex >=10)(BJointSpd = 175);
-  
+  } 
   else BJointSpd = (BJointSpd) +180;
-
-  //Serial.print("The value of the speed is" + String(BJointSpd));
 
   analogWrite(APWM_PIN, AJointSpd);
   analogWrite(BPWM_PIN, BJointSpd);
-  /*
-  Serial.print("ASPD:");
-  Serial.print(AJointSpd);
-  Serial.print("    BSPD:");
-  Serial.println(BJointSpd);
-*/
 
   previousAJointAng = AJointAng;
   previousBJointAng = BJointAng;
 }
-
-void reachAngle(double angle1, double angle2) {
-  double delta = 9999;
-  AJointSetpoint = angle1;
-  BJointSetpoint = angle2;
-
-  unsigned long tSign = millis();
-
-  while (delta > 5 and millis() < tSign + 1000) {
-    getPosition();
-    double delta1 = AJointSetpoint - AJointAng;
-    double delta2 = BJointSetpoint - BJointAng;
-    delta  = abs(delta1) + abs(delta2);
-    Serial.println(String(AJointAng) + " -> " + String(AJointSetpoint) + "; Speed: " + String(AJointSpd));
-    Serial.println(String(BJointAng) + " -> " + String(BJointSetpoint) + "; Speed: " + String(BJointSpd));
-    Serial.println(delta);
-  
-    if(AJointAng > AJointSetpoint) digitalWrite(AEN_PIN, LOW);
-    if(AJointAng < AJointSetpoint) digitalWrite(AEN_PIN, HIGH);
-    if(BJointAng > BJointSetpoint) digitalWrite(BEN_PIN, !LOW);
-    if(BJointAng < BJointSetpoint) digitalWrite(BEN_PIN, !HIGH);
-  
-    MotorAPID.Compute();
-    MotorBPID.Compute();
-
-    analogWrite(APWM_PIN, AJointSpd + 165);
-    analogWrite(BPWM_PIN, BJointSpd + 165);
-  }
-  
-  analogWrite(APWM_PIN, 0);
-  analogWrite(BPWM_PIN, 0);
-  Serial.println("Ending loop");
-}
-
-
 
 void loop() {
   while(running & bufferindex < buffersize){
@@ -427,7 +266,7 @@ void loop() {
       speedControl();
 
       //PORTG = PORTG ^ B00100000;
-      while(millis() < looptimer + 400);
+      while(millis() < looptimer + 10);
       bufferres[bufferindex] = BJointAng;
       bufferindex+=1;
   }
