@@ -64,9 +64,9 @@ double previousBJointAng = BJointSetpoint;
 // Tuning parameters
 const int sampleRate = 10; //  sampling rate
 
-int k1 = 0.8*10 , k2 = 0.9*0.3/4, k3 = 0.9*4*0;
+int k1 = 0.8*10 , k2 = 1, k3 = 1;
 
-double KpA=k1*3,  KpB=10;  //Initial Proportional Gain 
+double KpA=k1*3,  KpB=0;  //Initial Proportional Gain 
 double KiA=k3*10/10,  KiB=0;  //Initial Integral Gain 
 double KdA=k2*5,  KdB=0;  //Initial Differential Gain 
 
@@ -131,6 +131,21 @@ void setup() {
   MotorBPID.SetMode(AUTOMATIC);
   MotorBPID.SetSampleTime(sampleRate);
   MotorBPID.SetOutputLimits(0,75);
+
+  AJointSetpoint = 306;
+  BJointSetpoint = 94;
+
+  while(millis() < s + 100)
+  {
+    unsigned long looptimer = millis();
+    getPosition();
+    while(millis() < looptimer + 10);
+    bufferres[bufferindex] = BJointAng;
+    bufferindex++;
+  }
+
+  AJointSetpoint = 306;
+  BJointSetpoint = 84;
 }
 
 
@@ -213,7 +228,7 @@ void getPosition(){
      //Serial.println(deg2);
      deg2 = deg2 * 0.08789;
 
-     deg2 = mapfloat(deg2,360,0,0,360);
+     deg2 = mapfloat(deg2,360.0,0.0,0.0,360.0);
 
    }else{
     //Serial.println("Encoder #2 value received unchanged ! "); 
@@ -229,12 +244,8 @@ void getPosition(){
 
 
 void setPosControl(){
-  double sin_val = 9 * sin(2*Pi* (cur_iter+2.5) / (10 * 100)) + 85;
-  sin_val = round(sin_val);
-  
   AJointSetpoint = 306;
-  BJointSetpoint = sin_val;
-  cur_iter++;
+  BJointSetpoint = 84;
 }
 
 
@@ -251,8 +262,8 @@ void speedControl(){
   MotorBPID.Compute();
 
   AJointSpd = abs(AJointSpd) +175;
-  if ( BJointSpd == -1 ){
-      
+  if ( BJointSetpoint - maxAngleMargin < BJointAng and BJointAng < BJointSetpoint + maxAngleMargin){
+      BJointSpd = 0;
   } 
   else BJointSpd = (BJointSpd) +180;
 
@@ -267,7 +278,7 @@ void loop() {
   while(running & bufferindex < buffersize){
       unsigned long looptimer = millis();
       getPosition();
-      setPosControl();
+      //setPosControl();
       speedControl();
 
       //PORTG = PORTG ^ B00100000;
