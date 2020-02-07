@@ -54,7 +54,7 @@ int tLength = 15;
 
 //------------------------------------    PID control variables --------------------------------------
 
-double maxAngleMargin = 1;
+double maxAngleMargin = 0.1;
 double AJointSpd, BJointSpd;  // output variables to themotor
 double AJointAng, BJointAng;  // actual angular position of the joints received from the encoders
 double AJointSetpoint, BJointSetpoint, AJointSetpointOld, BJointSetpointOld;
@@ -66,7 +66,7 @@ const int sampleRate = 10; //  sampling rate
 
 int k1 = 0.8*10 , k2 = 0.9*0.3/4, k3 = 0.9*4*0;
 
-double KpA=k1*3,  KpB=10;  //Initial Proportional Gain 
+double KpA=k1*3,  KpB=0;  //Initial Proportional Gain 
 double KiA=k3*10/10,  KiB=0;  //Initial Integral Gain 
 double KdA=k2*5,  KdB=0;  //Initial Differential Gain 
 
@@ -99,7 +99,7 @@ void setup() {
   SPI.setClockDivider(SPI_CLOCK_DIV64);
   Serial.begin(9600);
 
-  Serial.println("starting");
+  //Serial.println("starting");
   Serial.flush();
   Dt = millis();
   
@@ -119,7 +119,7 @@ void setup() {
 
   DDRG = DDRG | B00100000;
 
-  Serial.println("Dual Motor Leg Test : Start!");
+  //Serial.println("Dual Motor Leg Test : Start!");
   
   s = millis();
   
@@ -229,12 +229,17 @@ void getPosition(){
 
 
 void setPosControl(){
-  double sin_val = 9 * sin(2*Pi* (cur_iter+2.5) / (10 * 100)) + 85;
+  double sin_val = 9 * sin(2*Pi* (cur_iter/100 + 2.5) / 10) + 85;
   sin_val = round(sin_val);
   
   AJointSetpoint = 306;
   BJointSetpoint = sin_val;
   cur_iter++;
+}
+
+void setPosControlEchelon(){
+  AJointSetpoint = 306;
+  BJointSetpoint = 84;
 }
 
 
@@ -251,6 +256,7 @@ void speedControl(){
   MotorBPID.Compute();
 
   AJointSpd = abs(AJointSpd) +175;
+  //BJointSpd = (BJointSpd) +180;
   if (BJointSetpoint - maxAngleMargin < BJointAng and BJointAng < BJointSetpoint + maxAngleMargin){
     BJointSpd = 0;
   } 
@@ -266,9 +272,9 @@ void speedControl(){
 void loop() {
   while(running & bufferindex < buffersize){
       unsigned long looptimer = millis();
-      getPosition();
-      setPosControl();
-      speedControl();
+      //getPosition();
+      //setPosControl();
+      //speedControl();
 
       //PORTG = PORTG ^ B00100000;
       while(millis() < looptimer + 10);
