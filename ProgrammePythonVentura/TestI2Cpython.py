@@ -1,22 +1,184 @@
+"""
+Test Interface I2C SpaceDog
+Andrea Ventura 7/2/2020
+"""
+from Tkinter import *
 import RPi.GPIO as gpio
 import smbus
 import time
 import sys
-bus = smbus.SMBus(1)
-address1 = 0x04
-address2 = 0x05
+
+class App:
+    def __init__(self, master):
+        
+        self.master=master
+        
+        self.bus = smbus.SMBus(1)
+        self.address1 = 0x04
+        self.address2 = 0x05
+
+        self.menu()
+
+    def menu(self):
+        self.FramePrincipale=Frame(self.master,
+                                      width=400,
+                                      height=400
+                                      )
+        self.FramePrincipale.grid(row=0,column=0,rowspan=3,columnspan=3)
+       
+        self.boutQuitter = Button(self.FramePrincipale, 
+                                  text="QUITTER",
+                                  fg="red",
+                                  bg="grey",
+                                  command=self.quitter)
+        self.boutQuitter.place(x=200,y=350,anchor=CENTER)
+        
+        self.boutonExtendMotorA1 = Button(self.FramePrincipale, 
+                                           text="Extend Motor A1",
+                                           command=lambda: self.extend(1,'A'))
+        self.boutonExtendMotorA1.place(x=30,y=30)
+        
+        self.boutonRetractMotorA1 = Button(self.FramePrincipale, 
+                                           text="Retract Motor A1",
+                                           command=lambda: self.retract(1,'A'))
+        self.boutonRetractMotorA1.place(x=170,y=30)
+
+        self.boutonExtendMotorB1 = Button(self.FramePrincipale, 
+                                           text="Extend Motor B1",
+                                           command=lambda: self.extend(1,'B'))
+        self.boutonExtendMotorB1.place(x=30,y=60)
+        
+        self.boutonRetractMotorB1 = Button(self.FramePrincipale, 
+                                           text="Retract Motor B1",
+                                           command=lambda: self.retract(1,'B'))
+        self.boutonRetractMotorB1.place(x=170,y=60)
+
+        self.boutonExtendMotorA2 = Button(self.FramePrincipale, 
+                                           text="Extend Motor A2",
+                                           command=lambda: self.extend(2,'A'))
+        self.boutonExtendMotorA2.place(x=30,y=90)
+        
+        self.boutonRetractMotorA2 = Button(self.FramePrincipale, 
+                                           text="Retract Motor A2",
+                                           command=lambda: self.retract(2,'A'))
+        self.boutonRetractMotorA2.place(x=170,y=90)
+
+        self.boutonExtendMotorB2 = Button(self.FramePrincipale, 
+                                           text="Extend Motor B2",
+                                           command=lambda: self.extend(2,'B'))
+        self.boutonExtendMotorB2.place(x=30,y=120)
+        
+        self.boutonRetractMotorB2 = Button(self.FramePrincipale, 
+                                           text="Retract Motor B2",
+                                           command=lambda: self.retract(2,'B'))
+        self.boutonRetractMotorB2.place(x=170,y=120) 
+
+        self.boutonExtendMotorA3 = Button(self.FramePrincipale, 
+                                           text="Extend Motor A3",
+                                           command=lambda: self.extend(3,'A'))
+        self.boutonExtendMotorA3.place(x=30,y=150)
+        
+        self.boutonRetractMotorA3 = Button(self.FramePrincipale, 
+                                           text="Retract Motor A3",
+                                           command=lambda: self.retract(3,'A'))
+        self.boutonRetractMotorA3.place(x=170,y=150)
+
+        self.boutonExtendMotorB3 = Button(self.FramePrincipale, 
+                                           text="Extend Motor B3",
+                                           command=lambda: self.extend(3,'B'))
+        self.boutonExtendMotorB3.place(x=30,y=180)
+        
+        self.boutonRetractMotorB3 = Button(self.FramePrincipale, 
+                                           text="Retract Motor B3",
+                                           command=lambda: self.retract(3,'B'))
+        self.boutonRetractMotorB3.place(x=170,y=180)
+
+        self.boutonExtendMotorA4 = Button(self.FramePrincipale, 
+                                           text="Extend Motor A4",
+                                           command=lambda: self.extend(4,'A'))
+        self.boutonExtendMotorA4.place(x=30,y=210)
+        
+        self.boutonRetractMotorA4 = Button(self.FramePrincipale, 
+                                           text="Retract Motor A4",
+                                           command=lambda: self.retract(4,'A'))
+        self.boutonRetractMotorA4.place(x=170,y=210)
+
+        self.boutonExtendMotorB4 = Button(self.FramePrincipale, 
+                                           text="Extend Motor B4",
+                                           command=lambda: self.extend(4,'B'))
+        self.boutonExtendMotorB4.place(x=30,y=240)
+        
+        self.boutonRetractMotorB4 = Button(self.FramePrincipale, 
+                                           text="Retract Motor B4",
+                                           command=lambda: self.retract(4,'B'))
+        self.boutonRetractMotorB4.place(x=170,y=240) 
+        
+    def quitter(self):
+        root.destroy()
+        
+    def extend(self,leg,motor):
+        if leg == 1:
+            if motor == 'A':
+                self.transmission(self.address1,3)
+            elif motor == 'B':
+                self.transmission(self.address1,7)
+        elif leg == 2:
+            if motor == 'A':
+                self.transmission(self.address1,11)
+            elif motor == 'B':
+                self.transmission(self.address1,15)
+        elif leg == 3:
+            if motor == 'A':
+                self.transmission(self.address2,3)
+            elif motor == 'B':
+                self.transmission(self.address2,7)
+        elif leg == 4:
+            if motor == 'A':
+                self.transmission(self.address2,11)
+            elif motor == 'B':
+                self.transmission(self.address2,15)
+        
+
+        
+    def retract(self,leg,motor):
+        if leg == 1:
+            if motor == 'A':
+                self.transmission(self.address1,1)
+            elif motor == 'B':
+                self.transmission(self.address1,5)
+        elif leg == 2:
+            if motor == 'A':
+                self.transmission(self.address1,9)
+            elif motor == 'B':
+                self.transmission(self.address1,13)
+        elif leg == 3:
+            if motor == 'A':
+                self.transmission(self.address2,1)
+            elif motor == 'B':
+                self.transmission(self.address2,5)
+        elif leg == 4:
+            if motor == 'A':
+                self.transmission(self.address2,9)
+            elif motor == 'B':
+                self.transmission(self.address2,13)
+
+    def transmission(self,address,value):
+        self.bus.write_byte(address,value)
+        self.reception(address)
+
+    def reception(self,address):
+        print "Arduino answer to RPI:", self.bus.read_byte(address)
+
+            
 def main():
+    global root
     gpio.setmode(gpio.BCM)
-    gpio.setup(17, gpio.OUT)
-    status = False
-    while 1:
-        gpio.output(17, status)
-        status = not status
-        bus.write_byte(address1, 0 if status else 1)
-        bus.write_byte(address2, 1 if status else 0)
-        print "Arduino1 answer to RPI:", bus.read_byte(address1)
-        print "Arduino2 answer to RPI:", bus.read_byte(address2)
-        time.sleep(1)
+    root=Tk()
+    root.title("Projet SpaceDog, The SPACE, Stage Andrea Ventura")
+    app = App(root)
+    time.sleep(1)
+    root.mainloop()
+    
 if __name__ == '__main__':
     try:
         main()
