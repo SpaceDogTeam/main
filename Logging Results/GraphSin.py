@@ -29,9 +29,9 @@ def PIDTuning(iter):
     return(Xcoords, Ycoords)
 
 
-#Xcoords, Ycoords = SineComp(1500)
-Xcoords, Ycoords = PIDTuning(1000)
-with open("PIDTuning6.txt", 'r') as file:
+Xcoords, Ycoords = SineComp(1000)
+#Xcoords, Ycoords = PIDTuning(1000)
+with open("P0I0D0.txt", 'r') as file:
     Mcoords_l = file.read()
     file.close()
 
