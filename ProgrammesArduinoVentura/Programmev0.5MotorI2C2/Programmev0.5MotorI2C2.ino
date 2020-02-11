@@ -19,8 +19,12 @@
 #define B2PWM_PIN  9 
 #define B2EN_PIN   10
 
-#define CS1 46 //Chip or Slave select  #1
-#define CS2 48 //Chip or Slave select  #2
+//----------------Encoders-----------------------
+#define CSA4 42 //Chip or Slave select Angle A leg 4
+#define CSB4 44 //Chip or Slave select Angle B leg 4
+
+#define CSA3 46 //Chip or Slave select Angle A leg 3
+#define CSB3 48 //Chip or Slave select Angle B leg 3
 
 #define WAITING_MS 20 // time left by the master between reads
 
@@ -64,6 +68,9 @@ double minAngleA, minAngleB, maxAngleA, maxAngleB; //Set min and max position of
 double AJointAng, BJointAng;  // actual angular position of the joints received from the encoders
 double AJointSetpoint, BJointSetpoint;
 
+double leg3Angles[2] = {0, 0};
+double leg4Angles[2] = {0, 0};
+
 
 //---------------data and transmissions variables----------------
 
@@ -81,10 +88,14 @@ boolean newData = false;
 
 void setup() {
   // put your setup code here, to run once:
-  pinMode(CS1,OUTPUT);//Slave#1 configuration 
-  pinMode(CS2,OUTPUT);//Slave#2 configuration 
-  digitalWrite(CS1,HIGH);  //  Slave#1 deSelected
-  digitalWrite(CS2,HIGH);  //  Slave#2 deSelected
+  pinMode(CSA3,OUTPUT);//Slaves encoders configuration 
+  pinMode(CSB3,OUTPUT);
+  pinMode(CSA4,OUTPUT); 
+  pinMode(CSB4,OUTPUT);
+  digitalWrite(CSA3,HIGH);  //Slaves encoders deSelected
+  digitalWrite(CSB3,HIGH);
+  digitalWrite(CSA4,HIGH);
+  digitalWrite(CSB4,HIGH);
   
   SPI.begin();
   SPI.setBitOrder(MSBFIRST);
@@ -120,8 +131,8 @@ void setup() {
   Serial.println("Quad Motor Leg Test : Start!");
   
   s = millis();
-  
-  //getPosition();
+
+
   flagReachedAngleA = 1;
   flagReachedAngleB = 1;
   flagMinA = 0;
@@ -151,7 +162,7 @@ uint8_t SPI_T (int index, uint8_t msg)    //Repetive SPI transmit sequence
 
 void getPosition(){
   uint8_t received = 0xA5;    //just a temp variable that the encoder will send if he's not ready of there isn't any remaining data to be sent
-   ABSposition1    = 0;    //reset position variable
+   ABSposition1 = 0;    //reset position variable
    ABSposition2 = 0;    //reset position variable
    
    SPI.begin();    //start transmition
@@ -376,11 +387,12 @@ void receiveData(int byteCount) {
     Serial.println(dataReceived);
   }
 }
+
 void sendData() {
   Wire.write(dataReceived);
 }
 
-void readReceivedData(){
+void readReceivedDataI2C(){
   byte maskMot = 3;
   byte maskDir = 1;
   
@@ -394,6 +406,7 @@ void updateMotor(){
   for (int i = 0; i<=3; i++){
     if (flagMoving[i]==1){
       tryStopMoveOneMotor(i);
+      getPosition(i)
     }
   }
 }
@@ -401,6 +414,6 @@ void updateMotor(){
 void loop() {
   currentMillis = millis();
   
-  readReceivedData();
+  readReceivedDataI2C();
   updateMotor();
 }
