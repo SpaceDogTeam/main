@@ -131,6 +131,8 @@ void setup() {
   MotorBPID.SetMode(AUTOMATIC);
   MotorBPID.SetSampleTime(sampleRate);
   MotorBPID.SetOutputLimits(0,75);
+
+  posReset();
 }
 
 
@@ -269,12 +271,25 @@ void speedControl(){
   previousBJointAng = BJointAng;
 }
 
+void posReset()
+{
+  digitalWrite(AEN_PIN, LOW);
+  digitalWrite(BEN_PIN, LOW);
+
+  unsigned long rtimer = millis();
+  while(millis() < rtimer + 4000)
+  {
+    analogWrite(APWM_PIN, 255);
+    analogWrite(BPWM_PIN, 255);
+  }
+}
+
 void loop() {
   while(running & bufferindex < buffersize){
       unsigned long looptimer = millis();
-      //getPosition();
-      //setPosControl();
-      //speedControl();
+      getPosition();
+      setPosControl();
+      speedControl();
 
       //PORTG = PORTG ^ B00100000;
       while(millis() < looptimer + 10);
@@ -282,7 +297,6 @@ void loop() {
       bufferindex+=1;
   }
 
-  Serial.println("MEASUREMENTS");
   for(int i=0; i<buffersize; i+=1)
   {
     Serial.println(String(bufferres[i]));
