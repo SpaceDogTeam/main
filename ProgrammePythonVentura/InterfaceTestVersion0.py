@@ -15,7 +15,6 @@ class App:
         
         self.master=master
         self.ser = ser
-        self.serBuffer = ""
         
         self.menu()
         
@@ -60,37 +59,39 @@ class App:
      
     def reception(self):
         global root
+        serBuffer = ""
         flagRecept = 0
-        while True:
-            c = self.ser.read()
-            
-            if len(c) == 0:
-                break
-            
-            elif (c == ":" and flagRecept == 0):
-                #print c
-                flagRecept = 1
-            elif flagRecept == 1:
-                #print c
-                if c == ";":
-                    flagRecept = 0  
-                    print self.serBuffer
-                    if (self.serBuffer[0] == "0"):
-                        "rien"
-                    elif (self.serBuffer[0] == "1"):
-                        "rien"
-                    elif (self.serBuffer[0] == "2"):
-                        "rien"
-                    elif (self.serBuffer[0] == "3"):
-                        "rien"
-                    elif (self.serBuffer[0] == "4"):
-                        "rien"
-                    self.serBuffer = ""
+        for i in range(0,4):
+            while True:
+                c = self.ser[i].read()
+                
+                if len(c) == 0:
                     break
+                
+                elif (c == ":" and flagRecept == 0):
+                    #print c
+                    flagRecept = 1
+                elif flagRecept == 1:
+                    #print c
+                    if c == ";":
+                        flagRecept = 0  
+                        print self.serBuffer
+                        if (self.serBuffer[0] == "0"):
+                            "rien"
+                        elif (self.serBuffer[0] == "1"):
+                            "rien"
+                        elif (self.serBuffer[0] == "2"):
+                            "rien"
+                        elif (self.serBuffer[0] == "3"):
+                            "rien"
+                        elif (self.serBuffer[0] == "4"):
+                            "rien"
+                        self.serBuffer = ""
+                        break
+                    else:
+                        self.serBuffer += c
                 else:
-                    self.serBuffer += c
-            else:
-                "rien"
+                    "rien"
                 
         root.after(100, self.reception)
 
