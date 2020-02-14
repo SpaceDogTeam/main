@@ -2,9 +2,9 @@ from math import pi, sin
 import matplotlib.pyplot as plt
 
 
-def SineComp():
+def SineComp(iter):
     samplerate = 10
-    iterations = 1000
+    iterations = iter
 
     Xcoords = []
     Ycoords = []
@@ -14,8 +14,8 @@ def SineComp():
 
     return(Xcoords, Ycoords)
 
-def PIDTuning():
-    iterations = 1000
+def PIDTuning(iter):
+    iterations = iter
 
     Xcoords = []
     Ycoords = []
@@ -29,9 +29,9 @@ def PIDTuning():
     return(Xcoords, Ycoords)
 
 
-Xcoords, Ycoords = SineComp()
-#Xcoords, Ycoords = PIDTuning()
-with open("PIDTuning3.txt", 'r') as file:
+Xcoords, Ycoords = SineComp(1000)
+#Xcoords, Ycoords = PIDTuning(1000)
+with open("P0I0D0.txt", 'r') as file:
     Mcoords_l = file.read()
     file.close()
 

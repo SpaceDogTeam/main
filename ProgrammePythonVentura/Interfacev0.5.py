@@ -121,7 +121,22 @@ class App:
         self.boutonThePas = Button(self.FramePrincipale, 
                                            text="the Pas",
                                            command=self.thePas)
-        self.boutonThePas.place(x=30,y=310) 
+        self.boutonThePas.place(x=30,y=310)
+
+        self.boutonUp = Button(self.FramePrincipale, 
+                                           text="All B+",
+                                           command=self.getUp)
+        self.boutonUp.place(x=170,y=310)
+
+        self.boutonDown = Button(self.FramePrincipale, 
+                                           text="All B-",
+                                           command=self.getDown)
+        self.boutonDown.place(x=250,y=310)
+
+        self.setZero = Button(self.FramePrincipale, 
+                                           text="Set Zero",
+                                           command=self.setZero)
+        self.setZero.place(x=300,y=330)
         
     def quitter(self):
         root.destroy()
@@ -147,9 +162,7 @@ class App:
                 self.transmission(self.address2,11)
             elif motor == 'B':
                 self.transmission(self.address2,15)
-        
-
-        
+            
     def retract(self,leg,motor):
         if leg == 1:
             if motor == 'A':
@@ -219,6 +232,24 @@ class App:
         self.transmission(self.address2,3)
         self.transmission(self.address2,11)
 
+    def getUp(self):
+        self.transmission(self.address1,7)
+        self.transmission(self.address1,15)
+        time.sleep(1)
+        self.transmission(self.address2,15)
+        self.transmission(self.address2,7)
+
+    def getDown(self):
+        self.transmission(self.address2,5)
+        self.transmission(self.address2,13)
+        time.sleep(1)
+        self.transmission(self.address1,13)
+        self.transmission(self.address1,5)
+
+    def setZero(self):
+        self.transmission(self.address1,16)
+        self.transmission(self.address2,16)
+        
 def main():
     global root
     gpio.setmode(gpio.BCM)
