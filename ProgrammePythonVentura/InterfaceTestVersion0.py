@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Test Interface SpaceDog
-Andrea Ventura 5/2/2020
+Andrea Ventura 6/2/2020
 """
 
 from Tkinter import *
@@ -11,11 +11,17 @@ import serial
 import time
 
 class App:
-    def __init__(self, master, ser):
+    def __init__(self, master, ser1, ser2, ser3, ser4):
         
         self.master=master
-        self.ser = ser
-        self.serBuffer = ""
+        self.ser1 = ser1
+        self.ser2 = ser2
+        self.ser3 = ser3
+        self.ser4 = ser4
+        self.ser1Buffer = ""
+        self.ser2Buffer = ""
+        self.ser3Buffer = ""
+        self.ser4Buffer = ""
         
         self.menu()
         
@@ -74,21 +80,21 @@ class App:
                 #print c
                 if c == ";":
                     flagRecept = 0  
-                    print self.serBuffer
-                    if (self.serBuffer[0] == "0"):
+                    print self.ser1Buffer
+                    if (self.ser1Buffer[0] == "0"):
                         "rien"
-                    elif (self.serBuffer[0] == "1"):
+                    elif (self.ser1Buffer[0] == "1"):
                         "rien"
-                    elif (self.serBuffer[0] == "2"):
+                    elif (self.ser1Buffer[0] == "2"):
                         "rien"
-                    elif (self.serBuffer[0] == "3"):
+                    elif (self.ser1Buffer[0] == "3"):
                         "rien"
-                    elif (self.serBuffer[0] == "4"):
+                    elif (self.ser1Buffer[0] == "4"):
                         "rien"
-                    self.serBuffer = ""
+                    self.ser1Buffer = ""
                     break
                 else:
-                    self.serBuffer += c
+                    self.ser1Buffer += c
             else:
                 "rien"
                 
@@ -109,7 +115,7 @@ def main():
     
     root = Tk()
     root.title("Projet SpaceDog, The SPACE, Stage Andrea Ventura")
-    app = App(root,ser)
+    app = App(root,ser1,ser2,ser3,ser4)
     root.after(10, app.reception)
     root.mainloop()
     
