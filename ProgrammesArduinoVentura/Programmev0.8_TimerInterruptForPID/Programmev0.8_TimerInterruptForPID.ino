@@ -3,8 +3,8 @@
 // The programm is the same for each leg, EXCEPT:
 // !!!!!! In the getPosition() function right before the mapfloat,
 // !!!!!! the IF statement has to check for index == 1  in 
-// !!!!!! the programm for the front left and bottom right legs
-// !!!!!! and check for index == 0 for the front right and bottom left legs
+// !!!!!! the programm for the front left and back right legs
+// !!!!!! and check for index == 0 for the front right and back left legs
 // !!!!!! because of the way the encoders for angle mesurments are mounted
 
 
@@ -15,11 +15,7 @@
 //#include <Math.h>
 //#include <Wire.h>
 
-//#define SLAVE_ADDRESS 0x04  //i2c arduino address
-//define serial interface
-
-
-//----------------Front left leg-----------------
+//----------------leg----------------------------
 #define A_PWM_PIN  5       // Speed of motor A and B in PWM units, value from 0 to 255
 #define A_EN_PIN   6       // Motor A is top motor B is botom
 
@@ -27,54 +23,40 @@
 #define B_EN_PIN   8
 
 //----------------Encoders-----------------------
-#define A_CS 48 //Chip or Slave select Angle A
-#define B_CS 46 //Chip or Slave select Angle B
+#define A_CS_PIN 48 //Chip or Slave select Angle A
+#define B_CS_PIN 46 //Chip or Slave select Angle B
 
 #define WAITING_MS 20 // time left by the master between reads
-
-#define WAITING_DS 150 // time left by the master between reads
+#define WAITING_DS 150 
 
 //----------------Angles Mesurments and calculation variables--------
 
 uint8_t temp[2]; // contains the MSB, LSB of the position
 
-double deg1 = 0;
-double deg2 = 0;
-
 uint16_t ABSposition = 0;  //  stores the Absolute position to be read from the encoder
-//uint16_t ABSposition_last = 0; //  stores the last known position
 
-unsigned long s = 0;
-unsigned long lastTrans = 0;
-
-int motorPwmPinsArray[4] = {A_PWM_PIN, B_PWM_PIN};
-int motorEnablePinsArray[4] = {A_EN_PIN, B_EN_PIN};
+int motorPwmPinsArray[2] = {A_PWM_PIN, B_PWM_PIN};
+int motorEnablePinsArray[2] = {A_EN_PIN, B_EN_PIN};
+int encoderCSPinsArray[2]={A_CS_PIN, B_CS_PIN};
 
 unsigned long Dt = 0;
 unsigned long Mt = 0;
-unsigned long St = 0;
-unsigned long currentMillis = 0;
-unsigned long startedMovingMillis[2] = {0 ,0};
 
 bool flagZero = 0;
-int flagMoving[2] = {0, 0};
 
-int moveMotorDur[2] = {0, 0};
-
-uint16_t reachMargin = 1;  // angle margin when reaching new position (total margin is twice that amount)
-double minAngleA, minAngleB, maxAngleA, maxAngleB; //Set min and max position of leg, min retracted max extended
-                                                   //Actual value doesnt matter (min can be > max)
-double AJointAng, BJointAng;  // actual angular position of the joints received from the encoders
-double AJointSetpoint, BJointSetpoint;
 
 double legsAngles[2] = {0, 0};   //A, B
 double legsAnglesPrevious[2] = {0, 0};    // memory of previous angle value mesured
+
 double legsAnglesZero[2] = {0, 0};
 double anglesSetpointsArray[2] = {0, 0};
-
-int encoderCSPinsArray[2]={A_CS, B_CS};
+double setpointMargin = 1;  // angle margin when reaching new position (total margin is twice that amount)
+double deltaError[2] = {0,0};
+int pwmValue[2] = {0,0};
 
 int tryErrorAngle = 0;
+
+int kP = 100;
 
 
 //---------------data and transmissions variables----------------
@@ -93,31 +75,33 @@ boolean newData = false;
 void setup() 
 {
   // put your setup code here, to run once:
-  pinMode(A_CS,OUTPUT);//Slaves encoders configuration 
-  pinMode(B_CS,OUTPUT);
+  pinMode(A_CS_PIN,OUTPUT);//Slaves encoders configuration 
+  pinMode(B_CS_PIN,OUTPUT);
 
   pinMode(A_PWM_PIN, OUTPUT);
   pinMode(A_EN_PIN, OUTPUT);
   pinMode(B_PWM_PIN, OUTPUT);
   pinMode(B_EN_PIN, OUTPUT);
   
-  digitalWrite(A_CS,HIGH);  //Slaves encoders de-selected
-  digitalWrite(B_CS,HIGH);
+  digitalWrite(A_CS_PIN,HIGH);  //Slaves encoders de-selected
+  digitalWrite(B_CS_PIN,HIGH);
 
   
 
-  //--------------------initialize Timer3--------------------------
+  //------initialize Timer3 for measure and Timer4 for PID--------
   
   //visit http://www.engblaze.com/microcontroller-tutorial-avr-and-arduino-timer-interrupts/
   //for a great little tutorial about timer interrupts
   //most of the basic interupt routine used here comes from there
   
   cli();  // disable global interrupts
+  
   TCCR3A = 0; // set entire TCCR3A register to 0
   TCCR3B = 0; // same for TCCR3B
-  
+
+  TCNT3 = 2500;            //offset the timer by 10ms
   // set compare match register to desired timer count:
-  OCR3A = 2500;            //2500 for 10ms timer with 64 prescaler
+  OCR3A = 5000;            //5000 for 20ms timer with 64 prescaler
   // turn on CTC mode:
   TCCR3B |= (1 << WGM32);
   // Set CS30 and 31 bit for 64 prescaler:
@@ -125,8 +109,25 @@ void setup()
   TCCR3B |= (1 << CS31);
   // enable timer compare interrupt:
   TIMSK3 |= (1 << OCIE3A);
+  
+  //------------------------------------------------------------------
+  
+  TCCR4A = 0; // set entire TCCR4A register to 0
+  TCCR4B = 0; // same for TCCR4B
+
+  
+  // set compare match register to desired timer count:
+  OCR4A = 5000;            //5000 for 20ms timer with 64 prescaler
+  // turn on CTC mode:
+  TCCR4B |= (1 << WGM42);
+  // Set CS40 and 41 bit for 64 prescaler:
+  TCCR4B |= (1 << CS40);
+  TCCR4B |= (1 << CS41);
+  // enable timer compare interrupt:
+  TIMSK4 |= (1 << OCIE4A);
+  
   sei();  // enable global interrupts
-  //--------------------End initialize Timer3--------------------------
+  //--------------------End initialize Timer4--------------------------
   //----------Initialize SPI comm for encoders mesurments--------------
   SPI.begin();
   SPI.setBitOrder(MSBFIRST);
@@ -137,28 +138,26 @@ void setup()
 
   Serial.println("starting");
   Serial.flush();
-  Dt = millis();
   
-  while(millis() < Dt+WAITING_DS);
   Dt = millis();
+  while(millis() < Dt+WAITING_DS);
+  
   SPI.end();
   Mt = micros();
-
-  
-
-  //Wire.begin(SLAVE_ADDRESS);
-  //Wire.onReceive(receiveData);
-  //Wire.onRequest(sendData);
   
   Serial.println("Quad Motor Leg Test : Start!");
-  
-  s = millis();
-
 }
 
 ISR(TIMER3_COMPA_vect)  //function executed when timer3 interrupt
-{
-  getPosition();
+{                       //Angular position mesurments
+  getPosition(0);
+  getPosition(1);
+} 
+
+ISR(TIMER4_COMPA_vect)  //function executed when timer4 interrupt
+{                       //PID computation
+  computePID(0);
+  computePID(1);
 } 
 
 double mapfloat(double x, double in_min, double in_max, double out_min, double out_max)
@@ -178,8 +177,8 @@ uint8_t SPI_T (int index, uint8_t msg)    //Repetive SPI transmit sequence
 void getPosition(int index){
   int tryAmount = 0;
   uint8_t received = 0xA5;    //just a temp variable that the encoder will send if he's not ready of there isn't any remaining data to be sent
-  ABSposition = 0;    //reset position variable
-  
+  uint16_t ABSposition = 0;  //  stores the Absolute position to be read from the encoder
+
   SPI.begin();    //start transmition
   
   SPI_T(index,0x10);   //issue read command to encoder #1
@@ -204,7 +203,7 @@ void getPosition(int index){
   ABSposition += temp[1];    // add LSB to ABSposition message to complete message
   
   legsAngles[index] = ABSposition * 0.08789;    // approx 360/4096
-  if (index == 1){
+  if (index == 1){            //set to 1 for front left and back right leg, 0 for other 2
     legsAngles[index] = mapfloat(legsAngles[index],0,360,360,0);    
   }
   //Serial.println(legsAngles[index]);     //send position in degrees
@@ -219,52 +218,61 @@ void getPosition(int index){
   }
 }
 
-void newSetPoint(int choiceMotor, double choiceAngle){
+void IncrSetPoint(int choiceMotor, double choiceAngle){
   if (flagZero){
-    anglesSetpointsArray[choiceMotor] + choiceAngle;
+    anglesSetpointsArray[choiceMotor] += choiceAngle;
   }
 }
 
-/**
-void changeOneMotorAngle(int choiceMotor, int choiceDir, double choiceAngle){     //mouvement avec angle
+void abslSetPoint(int choiceMotor, double choiceAngle){
   if (flagZero){
-    if (choiceDir){
-      legsAnglesTarget[choiceMotor] += choiceAngle;
-    }
-    else{
-      legsAnglesTarget[choiceMotor] -= choiceAngle;
-    }
+    anglesSetpointsArray[choiceMotor] = legsAnglesZero[choiceMotor] + choiceAngle;
   }
 }
-**/
-void updateMotorAngle(){                                                               //mouvement avec angle
+
+void computePID(int index){
   if (flagZero){
-    for (int i = 0; i<=1; i++){
-      getPosition(i);
-      if (legsAngles[i] > legsAnglesTarget[i] + 1){
-        digitalWrite(motorEnablePinsArray[i], 0);
-        analogWrite(motorPwmPinsArray[i], 255);
-        flagMoving[i] = 1;
-      }
-      else if (legsAngles[i] < legsAnglesTarget[i] - 1){
-        digitalWrite(motorEnablePinsArray[i], 1);
-        analogWrite(motorPwmPinsArray[i], 255);
-        flagMoving[i] = 1;
-      }
-      else{
-        analogWrite(motorPwmPinsArray[i], 0);
-        flagMoving[i] = 0;
-        //Serial.println(":Angle "+String(i)+" -> "+String(legsAngles[i])+";");
-      }
+    deltaError[index] = anglesSetpointsArray[index] - legsAngles[index];
+    if (deltaError[index] > 0){
+      digitalWrite(motorEnablePinsArray[index], 1);
     }
+    else if (deltaError[index] < 0){
+      digitalWrite(motorEnablePinsArray[index], 0);
+      deltaError[index] = abs(deltaError[index]);
+    }
+    pwmValue[index] = deltaError[index] * kP;
+    if (pwmValue[index] < 165){
+      pwmValue[index] = 0;
+    }
+    else if (pwmValue[index] > 255){
+      pwmValue[index] = 255;
+    }
+    analogWrite(motorPwmPinsArray[index], pwmValue[index]);
+
+    
+    //deltaError[index] > setpointMargin pwmValue[index]
+    /**
+    if (legsAngles[index] > anglesSetpointsArray[index] + 1){
+      digitalWrite(motorEnablePinsArray[index], 0);
+      analogWrite(motorPwmPinsArray[index], 255);
+    }
+    else if (legsAngles[index] < anglesSetpointsArray[index] - 1){
+      digitalWrite(motorEnablePinsArray[index], 1);
+      analogWrite(motorPwmPinsArray[index], 255);
+    }
+    else{
+      analogWrite(motorPwmPinsArray[index], 0);
+      //Serial.println(":Angle "+String(index)+" -> "+String(legsAngles[index])+";");
+    }
+    **/
   }
 }
 
 void setZero(){
   for (int i = 0; i<=1; i++){
-     getPosition(i);
+     //getPosition(i);
      legsAnglesZero[i] = legsAngles[i];
-     legsAnglesTarget[i] = legsAngles[i];
+     anglesSetpointsArray[i] = legsAngles[i];
      
      Serial.println(":zero set for "+String(i)+" -> "+String(legsAnglesZero[i])+";");
   }
@@ -327,23 +335,22 @@ void interpretData() {
       setZero();
   }
   else if (val1 == 1){
-    changeOneMotorAngle(val2, val3, 5);
+    IncrSetPoint(val2, val3);
+  }
+  else if (val1 == 2){
+    abslSetPoint(val2, val3);
   }
 }
 
 void loop() {
-  currentMillis = millis();
-  
   recvWithStartEndMarkers();
   if (newData == true) {
     strcpy(tempChars, receivedChars);
     // this temporary copy is necessary to protect the original data
     //   because strtok() replaces the commas with \0
     parseData();
-    /*showParsedData();*/
+    //showParsedData();
     interpretData();
     newData = false;
   }
-  //updateMotorTime();
-  updateMotorAngle();
 }

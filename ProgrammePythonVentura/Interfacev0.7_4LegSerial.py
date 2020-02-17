@@ -260,7 +260,8 @@ def main():
     global ser
     global port
     ser = [None] * 4
-    port = ['/dev/ttyACM0', '/dev/ttyACM1', '/dev/ttyACM2', '/dev/ttyACM3']
+    # maybe 'COM8', 'COM6', 'COM10', 'COM9'
+    port = ['/dev/ttyACM0', '/dev/ttyACM1', '/dev/ttyACM2', '/dev/ttyACM3'] 
     for i in range(0,4):
         try:
             ser[i] = serial.Serial(port[i], 9600, timeout = 0)
