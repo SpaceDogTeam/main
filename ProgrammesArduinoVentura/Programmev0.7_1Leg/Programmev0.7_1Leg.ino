@@ -172,7 +172,7 @@ void getPosition(int index){
     legsAnglesPrevious[index] = legsAngles[index];
     tryErrorAngle = 0;
   }
-}
+  }
 /**
 void setAngleLimits(int choiceAngleToLimit){
   //getPosition();
@@ -244,14 +244,11 @@ void tryStopMoveOneMotor(int choiceMotor){                                      
   }
 }
 **/
-void changeOneMotorAngle(int choiceMotor, int choiceDir, double choiceAngle){     //mouvement avec angle
+void changeOneMotorAngle(int choiceMotor, double choiceAngle){     //mouvement avec angle
   if (flagZero){
-    if (choiceDir){
-      legsAnglesTarget[choiceMotor] += choiceAngle;
-    }
-    else{
-      legsAnglesTarget[choiceMotor] -= choiceAngle;
-    }
+ 
+    legsAnglesTarget[choiceMotor] += choiceAngle;
+    
   }
 }
 
@@ -435,7 +432,7 @@ void interpretData() {
       setZero();
   }
   else if (val1 == 1){
-    changeOneMotorAngle(val2, val3, 5);
+    changeOneMotorAngle(val2, val3);
   }
 }
 

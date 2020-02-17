@@ -10,6 +10,7 @@
 #include <SPI.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <PID_v1.h>
 //#include <Math.h>
 //#include <Wire.h>
 
@@ -50,13 +51,18 @@ double legsAnglesZero[2] = {0, 0};
 double anglesSetpointsArray[2] = {0, 0};
 double setpointMargin = 1;  // angle margin when reaching new position (total margin is twice that amount)
 double deltaError[2] = {0,0};
-int pwmValue[2] = {0,0};
+double pwmValue[2] = {0,0};
+int encoderNtours[2] = {0,0};
 
-int tryErrorAngle = 0;
+int tryErrorAngle[2] = {0,0};
 
 int kP = 100;
 
+//--------------------PID Lib variables--------------------------
 
+PID myPIDmotorA(&legsAngles[0],&pwmValue[0],&anglesSetpointsArray[0],100,0,0,DIRECT);
+PID myPIDmotorB(&legsAngles[1],&pwmValue[1],&anglesSetpointsArray[1],100,0,0,REVERSE);
+//---------------------------------------------------------------
 //---------------data and transmissions variables----------------
 int val1, val2, val3;
 
@@ -92,6 +98,7 @@ void setup()
   //for a great little tutorial about timer interrupts
   //most of the basic interupt routine used here comes from there
   
+  
   cli();  // disable global interrupts
   
   TCCR3A = 0; // set entire TCCR3A register to 0
@@ -113,7 +120,6 @@ void setup()
   TCCR4A = 0; // set entire TCCR4A register to 0
   TCCR4B = 0; // same for TCCR4B
 
-  
   // set compare match register to desired timer count:
   OCR4A = 5000;            //5000 for 20ms timer with 64 prescaler
   // turn on CTC mode:
@@ -125,24 +131,30 @@ void setup()
   TIMSK4 |= (1 << OCIE4A);
   
   sei();  // enable global interrupts
+  
+  
   //--------------------End initialize Timer4--------------------------
   //----------Initialize SPI comm for encoders mesurments--------------
   SPI.begin();
   SPI.setBitOrder(MSBFIRST);
   SPI.setDataMode(SPI_MODE0);
   SPI.setClockDivider(SPI_CLOCK_DIV64);
-  //---------------------------End SPI---------------------------------
-  Serial.begin(9600);
-
-  Serial.println("starting");
-  Serial.flush();
-  
-  Dt = millis();
-  while(millis() < Dt+WAITING_DS);
   
   SPI.end();
-  Mt = micros();
+
   
+  //---------------------------End SPI---------------------------------
+  //-----------------------PID Library setup---------------------------
+  
+  myPIDmotorA.SetOutputLimits(-255, 255);
+  myPIDmotorA.SetSampleTime(0);
+  myPIDmotorB.SetOutputLimits(-255, 255);
+  myPIDmotorB.SetSampleTime(0);
+  
+  //-------------------------------------------------------------------
+  Serial.begin(9600);
+  //Serial.println("starting");
+  Serial.flush();
   Serial.println("Quad Motor Leg Test : Start!");
 }
 
@@ -154,10 +166,13 @@ ISR(TIMER3_COMPA_vect)  //function executed when timer3 interrupt
 
 ISR(TIMER4_COMPA_vect)  //function executed when timer4 interrupt
 {                       //PID computation
-  computePID(0);
-  computePID(1);
-} 
-
+  
+  myPIDmotorA.Compute();
+  moveMotor(0);
+  myPIDmotorB.Compute();
+  moveMotor(1);
+}
+ 
 double mapfloat(double x, double in_min, double in_max, double out_min, double out_max)
 {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -169,6 +184,7 @@ uint8_t SPI_T (int index, uint8_t msg)    //Repetive SPI transmit sequence
    digitalWrite(encoderCSPinsArray[index],LOW);  //  select spi device 
    msg_temp = SPI.transfer(msg); // sends (receive) message to (from) the encoder #index
    digitalWrite(encoderCSPinsArray[index],HIGH); //  deselect spi device
+   delayMicroseconds(10);   //delay here to prevent the AMT20 from having to prioritize SPI over obtaining our position
    return (msg_temp);    //return received byte
 }
 
@@ -181,13 +197,10 @@ void getPosition(int index){
   
   SPI_T(index,0x10);   //issue read command to encoder #1
   received = SPI_T(index,0x00);    //issue NOP to check if encoder is ready to send
-  while (received != 0x10 and tryAmount < 3)    //loop while encoder is not ready to send 
+  while (received != 0x10 and tryAmount++ < 5)    //loop while encoder is not ready to send 
   {
     received = SPI_T(index,0x00);    //check again if both encoders are still working 
     //Serial.println("Encoder #1 not ready ! "); 
-    while(micros() < Mt+WAITING_MS);
-    Mt = micros();
-    tryAmount += 1;
     //Serial.println(tryAmount);
   }
   
@@ -199,21 +212,20 @@ void getPosition(int index){
   
   ABSposition = temp[0] << 8;    //shift MSB to correct ABSposition in ABSposition message
   ABSposition += temp[1];    // add LSB to ABSposition message to complete message
+
+  //Serial.println(ABSposition);
   
-  legsAngles[index] = ABSposition * 0.08789;    // approx 360/4096
-  if (index == 1){            //set to 1 for front left and back right leg, 0 for other 2
-    legsAngles[index] = mapfloat(legsAngles[index],0,360,360,0);    
+  legsAngles[index] = (ABSposition * 0.08789)+encoderNtours[index]*360; // approx 360/4096
+  //--------------Angle Roll-Over Managements-----------
+  if (legsAnglesPrevious[index]-(encoderNtours[index]*360) > 355 and legsAngles[index]-(encoderNtours[index]*360) < 5){
+    legsAngles[index] += 360;
+    encoderNtours[index] += 1;
   }
-  //Serial.println(legsAngles[index]);     //send position in degrees
-  
-  if ((legsAngles[index] < legsAnglesPrevious[index]-1 or legsAngles[index] > legsAnglesPrevious[index]+1) and tryErrorAngle < 3 and flagZero){     //discard wrong measurments 
-    legsAngles[index] = legsAnglesPrevious[index];
-    tryErrorAngle += 1;
+  else if (legsAnglesPrevious[index]-(encoderNtours[index]*360) < 5 and legsAngles[index]-(encoderNtours[index]*360) > 355){
+    legsAngles[index] -= 360;
+    encoderNtours[index] -= 1;
   }
-  else{
-    legsAnglesPrevious[index] = legsAngles[index];
-    tryErrorAngle = 0;
-  }
+  legsAnglesPrevious[index] = legsAngles[index];
 }
 
 void IncrSetPoint(int choiceMotor, double choiceAngle){
@@ -268,13 +280,31 @@ void computePID(int index){
 
 void setZero(){
   for (int i = 0; i<=1; i++){
-     //getPosition(i);
+     getPosition(i);
      legsAnglesZero[i] = legsAngles[i];
      anglesSetpointsArray[i] = legsAngles[i];
      
      Serial.println(":zero set for "+String(i)+" -> "+String(legsAnglesZero[i])+";");
   }
   flagZero = 1;
+  myPIDmotorA.SetMode(AUTOMATIC);
+  myPIDmotorB.SetMode(AUTOMATIC);
+}
+
+void moveMotor(int index){    //apply the pwm calculated by the PID to the motor
+  //Serial.println(":PWM value "+String(pwmValue[index])+";");
+  if (pwmValue[index] > 165){
+    digitalWrite(motorEnablePinsArray[index], 1);
+    analogWrite(motorPwmPinsArray[index], pwmValue[index]);
+  }
+  else if (pwmValue[index] < -165){
+    digitalWrite(motorEnablePinsArray[index], 0);
+    analogWrite(motorPwmPinsArray[index], -pwmValue[index]);
+  }
+  else {
+    analogWrite(motorPwmPinsArray[index], 0);
+  }
+  
 }
 
 void recvWithStartEndMarkers() {
@@ -330,7 +360,7 @@ void interpretData() {
   Serial.println(buff);
   
   if (val1 == 0){
-      setZero();
+    setZero();
   }
   else if (val1 == 1){
     IncrSetPoint(val2, val3);
@@ -340,7 +370,7 @@ void interpretData() {
   }
 }
 
-void loop() {
+void reception(){
   recvWithStartEndMarkers();
   if (newData == true) {
     strcpy(tempChars, receivedChars);
@@ -351,4 +381,7 @@ void loop() {
     interpretData();
     newData = false;
   }
+}
+void loop() {
+  reception();
 }
