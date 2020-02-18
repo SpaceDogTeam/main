@@ -1,10 +1,9 @@
 // Programm for each arduino of the SpaceDog Project from The SPACE by Andrea Ventura
 // Each arduino control 1 leg
 // The programm is the same for each leg, EXCEPT:
-// !!!!!! In the getPosition() function right before the mapfloat,
-// !!!!!! the IF statement has to check for index == 1  in 
-// !!!!!! the programm for the front left and back right legs
-// !!!!!! and check for index == 0 for the front right and back left legs
+// !!!!!! In the PID creation, motor A is direct and B reverse
+// !!!!!! for the front left and back right leg
+// !!!!!! and the opposite or the front right and back left legs
 // !!!!!! because of the way the encoders for angle mesurments are mounted
 
 #include <SPI.h>
@@ -153,7 +152,7 @@ void setup()
   
   //-------------------------------------------------------------------
   Serial.begin(9600);
-  //Serial.println("starting");
+  Serial.println("starting");
   Serial.flush();
   Serial.println("Quad Motor Leg Test : Start!");
 }
@@ -172,7 +171,7 @@ ISR(TIMER4_COMPA_vect)  //function executed when timer4 interrupt
   myPIDmotorB.Compute();
   moveMotor(1);
 }
- 
+
 double mapfloat(double x, double in_min, double in_max, double out_min, double out_max)
 {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -355,7 +354,7 @@ void parseData() {
 
 void interpretData() {
   char  buff[20];
-  sprintf(buff,"ack <%d,%d,%d>",val1,val2,val3);
+  sprintf(buff,":ack <%d,%d,%d>;",val1,val2,val3);
   Serial.flush();
   Serial.println(buff);
   
