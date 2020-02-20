@@ -141,15 +141,15 @@ class App:
         
     def incrAngle(self,leg,motor):
         if motor == 'A':
-            self.transmission(leg,1,0,5)
+            self.transmission(leg,1,0,20)
         elif motor == 'B':
-            self.transmission(leg,1,1,5)
+            self.transmission(leg,1,1,20)
             
     def decrAngle(self,leg,motor):
         if motor == 'A':
-            self.transmission(leg,1,0,-5)
+            self.transmission(leg,1,0,-20)
         elif motor == 'B':
-            self.transmission(leg,1,1,-5)
+            self.transmission(leg,1,1,-20)
             
     def frontUp(self):
         self.transmission(0,1,1,-20)

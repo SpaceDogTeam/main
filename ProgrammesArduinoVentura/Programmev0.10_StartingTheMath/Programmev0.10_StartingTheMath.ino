@@ -152,9 +152,7 @@ void setup()
   
   //-------------------------------------------------------------------
   Serial.begin(9600);
-  Serial.println("starting");
   Serial.flush();
-  Serial.println("Quad Motor Leg Test Starting!");
 }
 
 ISR(TIMER3_COMPA_vect)  //function executed when timer3 interrupt
