@@ -138,6 +138,16 @@ class App:
                                            text="Thread Check",
                                            command=self.check_thread)
         self.butThread.place(x=200,y=300)
+        
+        self.boutondetout = tk.Button(self.FramePrincipale, 
+                                           text="Un peu de tout",
+                                           command=self.unPeudeTout)
+        self.boutondetout.place(x=30,y=300)
+        
+        self.boutongoToZero = tk.Button(self.FramePrincipale, 
+                                           text="Go To Zero",
+                                           command=self.goTo_zero)
+        self.boutongoToZero.place(x=30,y=330)
        
     def quitter(self):
         for i in threadList:
@@ -175,6 +185,32 @@ class App:
         time.sleep(1)
         self.maint_transmission(1,1,1,-20)
         self.maint_transmission(0,1,1,20)
+        
+    def unPeudeTout(self):
+        self.maint_transmission(0,2,1,-10)
+        self.maint_transmission(1,2,1,10)
+        time.sleep(1)
+        self.maint_transmission(0,2,0,5)
+        self.maint_transmission(1,2,0,-5)
+        time.sleep(1)
+        self.maint_transmission(2,2,1,10)
+        self.maint_transmission(3,2,1,-10)
+        time.sleep(1)
+        self.maint_transmission(2,2,0,-5)
+        self.maint_transmission(3,2,0,5)
+    
+    def goTo_zero(self):
+        self.maint_transmission(0,2,1,0)
+        self.maint_transmission(1,2,1,0)
+        time.sleep(1)
+        self.maint_transmission(0,2,0,0)
+        self.maint_transmission(1,2,0,0)
+        time.sleep(1)
+        self.maint_transmission(2,2,1,0)
+        self.maint_transmission(3,2,1,0)
+        time.sleep(1)
+        self.maint_transmission(2,2,0,0)
+        self.maint_transmission(3,2,0,0)
     
     def setZero(self):
         self.maint_transmission(0,0)

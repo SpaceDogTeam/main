@@ -59,8 +59,8 @@ int kP = 100;
 
 //--------------------PID Lib variables--------------------------
 
-PID myPIDmotorA(&legsAngles[0],&pwmValue[0],&anglesSetpointsArray[0],100,0,0,DIRECT);
-PID myPIDmotorB(&legsAngles[1],&pwmValue[1],&anglesSetpointsArray[1],100,0,0,REVERSE);
+PID myPIDmotorA(&legsAngles[0],&pwmValue[0],&anglesSetpointsArray[0],165,0,0,DIRECT);
+PID myPIDmotorB(&legsAngles[1],&pwmValue[1],&anglesSetpointsArray[1],165,0,0,REVERSE);
 //---------------------------------------------------------------
 //---------------data and transmissions variables----------------
 int val1, val2, val3;
@@ -197,8 +197,6 @@ void getPosition(int index){
   while (received != 0x10 and tryAmount++ < 5)    //loop while encoder is not ready to send 
   {
     received = SPI_T(index,0x00);    //check again if both encoders are still working 
-    //Serial.println("Encoder #1 not ready ! "); 
-    //Serial.println(tryAmount);
   }
   
   temp[0] = SPI_T(index,0x00);    //Receive MSB
@@ -210,8 +208,6 @@ void getPosition(int index){
   ABSposition = temp[0] << 8;    //shift MSB to correct ABSposition in ABSposition message
   ABSposition += temp[1];    // add LSB to ABSposition message to complete message
 
-  //Serial.println(ABSposition);
-  
   legsAngles[index] = (ABSposition * 0.08789)+encoderNtours[index]*360; // approx 360/4096
   //--------------Angle Roll-Over Managements-----------
   if (legsAnglesPrevious[index]-(encoderNtours[index]*360) > 355 and legsAngles[index]-(encoderNtours[index]*360) < 5){
@@ -237,51 +233,13 @@ void abslSetPoint(int choiceMotor, double choiceAngle){
   }
 }
 
-void computePID(int index){
-  if (flagZero){
-    deltaError[index] = anglesSetpointsArray[index] - legsAngles[index];
-    if (deltaError[index] > 0){
-      digitalWrite(motorEnablePinsArray[index], 1);
-    }
-    else if (deltaError[index] < 0){
-      digitalWrite(motorEnablePinsArray[index], 0);
-      deltaError[index] = abs(deltaError[index]);
-    }
-    pwmValue[index] = deltaError[index] * kP;
-    if (pwmValue[index] < 165){
-      pwmValue[index] = 0;
-    }
-    else if (pwmValue[index] > 255){
-      pwmValue[index] = 255;
-    }
-    analogWrite(motorPwmPinsArray[index], pwmValue[index]);
-
-    
-    //deltaError[index] > setpointMargin pwmValue[index]
-    /**
-    if (legsAngles[index] > anglesSetpointsArray[index] + 1){
-      digitalWrite(motorEnablePinsArray[index], 0);
-      analogWrite(motorPwmPinsArray[index], 255);
-    }
-    else if (legsAngles[index] < anglesSetpointsArray[index] - 1){
-      digitalWrite(motorEnablePinsArray[index], 1);
-      analogWrite(motorPwmPinsArray[index], 255);
-    }
-    else{
-      analogWrite(motorPwmPinsArray[index], 0);
-      //Serial.println(":Angle "+String(index)+" -> "+String(legsAngles[index])+";");
-    }
-    **/
-  }
-}
-
 void setZero(){
   for (int i = 0; i<=1; i++){
      getPosition(i);
      legsAnglesZero[i] = legsAngles[i];
      anglesSetpointsArray[i] = legsAngles[i];
      
-     Serial.println(":zero set for "+String(i)+" -> "+String(legsAnglesZero[i])+";");
+     //Serial.println(":zero set for "+String(i)+" -> "+String(legsAnglesZero[i])+";");
   }
   flagZero = 1;
   myPIDmotorA.SetMode(AUTOMATIC);
@@ -289,7 +247,6 @@ void setZero(){
 }
 
 void moveMotor(int index){    //apply the pwm calculated by the PID to the motor
-  //Serial.println(":PWM value "+String(pwmValue[index])+";");
   if (pwmValue[index] > 165){
     digitalWrite(motorEnablePinsArray[index], 1);
     analogWrite(motorPwmPinsArray[index], pwmValue[index]);
@@ -352,10 +309,11 @@ void parseData() {
 
 void interpretData() {
   char  buff[20];
+  /*
   sprintf(buff,":ack <%d,%d,%d>;",val1,val2,val3);
   Serial.flush();
   Serial.println(buff);
-  
+  */
   if (val1 == 0){
     setZero();
   }
