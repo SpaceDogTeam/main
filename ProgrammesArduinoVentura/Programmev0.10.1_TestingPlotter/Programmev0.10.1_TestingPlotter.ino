@@ -59,8 +59,8 @@ int kP = 100;
 
 //--------------------PID Lib variables--------------------------
 
-PID myPIDmotorA(&legsAngles[0],&pwmValue[0],&anglesSetpointsArray[0],100,0,0,REVERSE);
-PID myPIDmotorB(&legsAngles[1],&pwmValue[1],&anglesSetpointsArray[1],100,0,0,DIRECT);
+PID myPIDmotorA(&legsAngles[0],&pwmValue[0],&anglesSetpointsArray[0],165,0,0,DIRECT);
+PID myPIDmotorB(&legsAngles[1],&pwmValue[1],&anglesSetpointsArray[1],165,0,0,REVERSE);
 //---------------------------------------------------------------
 //---------------data and transmissions variables----------------
 int val1, val2, val3;
@@ -157,15 +157,16 @@ void setup()
 
 ISR(TIMER3_COMPA_vect)  //function executed when timer3 interrupt
 {                       //Angular position mesurments
-  getPosition(0);
+  //getPosition(0);
   getPosition(1);
+  Serial.println(legsAngles[1]);
 } 
 
 ISR(TIMER4_COMPA_vect)  //function executed when timer4 interrupt
 {                       //PID computation
   
-  myPIDmotorA.Compute();
-  moveMotor(0);
+  //myPIDmotorA.Compute();
+  //moveMotor(0);
   myPIDmotorB.Compute();
   moveMotor(1);
 }

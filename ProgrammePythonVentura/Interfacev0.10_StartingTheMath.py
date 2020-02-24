@@ -148,6 +148,16 @@ class App:
                                            text="Go To Zero",
                                            command=self.goTo_zero)
         self.boutongoToZero.place(x=30,y=330)
+        
+        self.boutonMove = tk.Button(self.FramePrincipale, 
+                                           text="Fait un pas",
+                                           command=self.unPas)
+        self.boutonMove.place(x=30,y=360)
+        
+        self.boutonMiChemin = tk.Button(self.FramePrincipale, 
+                                           text="Position neutre",
+                                           command=self.positionNeutre)
+        self.boutonMiChemin.place(x=170,y=360)
        
     def quitter(self):
         for i in threadList:
@@ -155,6 +165,33 @@ class App:
             i.join()
         
         root.destroy()
+    
+    def unPas(self):
+        self.maint_transmission(2,2,1,10)
+        self.maint_transmission(3,2,1,-10)
+        time.sleep(3)
+        self.maint_transmission(0,2,1,-15)
+        time.sleep(1)
+        self.maint_transmission(0,2,0,16)
+        time.sleep(1)
+        self.maint_transmission(0,2,1,-31.18)
+        time.sleep(2)
+        self.maint_transmission(2,2,1,31.18)
+        self.maint_transmission(3,2,1,-31.18)
+
+
+    def positionNeutre(self):
+        self.maint_transmission(0,2,0,8.93)
+        self.maint_transmission(1,2,0,-8.93)
+        time.sleep(4)
+        self.maint_transmission(0,2,1,-31.18)
+        self.maint_transmission(1,2,1,31.18)
+        time.sleep(4)
+        self.maint_transmission(2,2,0,-8.93)
+        self.maint_transmission(3,2,0,8.93)
+        time.sleep(4)
+        self.maint_transmission(2,2,1,31.18)
+        self.maint_transmission(3,2,1,-31.18)
         
     def incrAngle(self,leg,motor):
         if motor == 'A':
