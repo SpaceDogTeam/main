@@ -10,15 +10,34 @@ import sys
 import logging
 import threading
 import Queue
+from PIL import Image, ImageTk
+
 
 class App:
     def __init__(self, master):
         
         self.master=master
+        self.mainTransmitList = []
         self.threadList = []
         #'COM8', 'COM6', 'COM10', 'COM9'
         #'/dev/ttyACM0', '/dev/ttyACM1', '/dev/ttyACM2', '/dev/ttyACM3' with pi
         self.portList = ['COM8', 'COM6', 'COM10', 'COM9']
+        self._mainEventArray=[]
+        
+        self.h_Interface = 400
+        self.l_Interface = 600
+        
+        self.target_time = time.time()
+        self.current_time = time.time()
+        
+    
+        self.image = Image.open("TheSpace.png")
+        self.image.thumbnail((self.l_Interface*2/3,self.h_Interface*2/3))
+        self.im_titre = ImageTk.PhotoImage(self.image)
+        
+        #self.im_titre = self.im_titre.subsample(x=2,y=2)
+      
+        
         for i in self.portList:
             q=Queue.Queue()
             e=threading.Event()
@@ -26,24 +45,35 @@ class App:
             t.setDaemon(True)
             self.threadList.append(t)
             t.start()
-        self._mainEventArray=[]
+        
         for i in range(4):
             self._mainEventArray.append(threading.Event())
+        
         self.menu()
 
     def menu(self):
-        self.FramePrincipale=tk.Frame(self.master,
-                                      width=400,
-                                      height=400
+        
+        
+        self.FramePrincipale=GradientFrame(self.master,
+                                      width=self.l_Interface,
+                                      height=self.h_Interface,
+                                      color1='#e31440',
+                                      color2='#5416c5',
+                                      color3='#1e0036'
                                       )
         self.FramePrincipale.grid(row=0,column=0,rowspan=3,columnspan=3)
+
+        self.lab_image_titre = tk.Label(self.FramePrincipale,
+                                        bg='white',
+                                        image=self.im_titre)
+        self.lab_image_titre.place(x=0,y=0)
        
         self.boutQuitter = tk.Button(self.FramePrincipale, 
                                   text="QUITTER",
                                   fg="red",
                                   bg="grey",
                                   command=self.quitter)
-        self.boutQuitter.place(x=200,y=350,anchor=tk.CENTER)
+        self.boutQuitter.place(x=self.l_Interface/2,y=self.h_Interface-20,anchor=tk.CENTER)
         
         self.boutonExtendMotorA1 = tk.Button(self.FramePrincipale, 
                                            text="Extend Motor A1",
@@ -169,7 +199,85 @@ class App:
                                            text="Position neutre",
                                            command=self.positionNeutre)
         self.boutonMiChemin.place(x=170,y=360)
-       
+
+            
+            
+    def unPas(self):
+        self.maint_transmission(2,2,1,10)
+        self.maint_transmission(3,2,1,-10)
+        self.delay_transmission(3)
+        self.maint_transmission(0,2,1,-15)
+        self.delay_transmission(1)
+        self.maint_transmission(0,2,0,16)
+        self.delay_transmission(1)
+        self.maint_transmission(0,2,1,-31.18)
+        self.delay_transmission(2)
+        self.maint_transmission(2,2,1,31.18)
+        self.maint_transmission(3,2,1,-31.18)
+
+    def positionNeutre(self):
+        self.maint_transmission(0,2,0,8.93)
+        self.maint_transmission(1,2,0,-8.93)
+        self.delay_transmission(4)
+        self.maint_transmission(0,2,1,-31.18)
+        self.maint_transmission(1,2,1,31.18)
+        self.delay_transmission(4)
+        self.maint_transmission(2,2,0,-8.93)
+        self.maint_transmission(3,2,0,8.93)
+        self.delay_transmission(4)
+        self.maint_transmission(2,2,1,31.18)
+        self.maint_transmission(3,2,1,-31.18)
+    
+    def frontUp(self):
+        self.maint_transmission(0,1,1,-20)
+        self.maint_transmission(1,1,1,20)
+    
+    def getUp(self):
+        self.maint_transmission(0,1,1,-20)
+        self.maint_transmission(1,1,1,20)
+        self.delay_transmission(1)
+        self.maint_transmission(2,1,1,20)
+        self.maint_transmission(3,1,1,-20)
+
+    def getDown(self):
+        self.maint_transmission(3,1,1,20)
+        self.maint_transmission(2,1,1,-20)
+        self.delay_transmission(1)
+        self.maint_transmission(1,1,1,-20)
+        self.maint_transmission(0,1,1,20)
+        
+    def unPeudeTout(self):
+        self.maint_transmission(0,2,1,-10)
+        self.maint_transmission(1,2,1,10)
+        self.delay_transmission(1)
+        self.maint_transmission(0,2,0,5)
+        self.maint_transmission(1,2,0,-5)
+        self.delay_transmission(1)
+        self.maint_transmission(2,2,1,10)
+        self.maint_transmission(3,2,1,-10)
+        self.delay_transmission(1)
+        self.maint_transmission(2,2,0,-5)
+        self.maint_transmission(3,2,0,5)
+    
+    def goTo_zero(self):
+        self.maint_transmission(0,2,1,0)
+        self.maint_transmission(1,2,1,0)
+        self.delay_transmission(1)
+        self.maint_transmission(0,2,0,0)
+        self.maint_transmission(1,2,0,0)
+        self.delay_transmission(1)
+        self.maint_transmission(2,2,1,0)
+        self.maint_transmission(3,2,1,0)
+        self.delay_transmission(1)
+        self.maint_transmission(2,2,0,0)
+        self.maint_transmission(3,2,0,0)
+    
+    def setZero(self):
+        self.maint_transmission(0,0)
+        self.maint_transmission(1,0)
+        self.maint_transmission(2,0)
+        self.maint_transmission(3,0)
+            
     def quitter(self):
         for i in self.threadList:
             i.stop()
@@ -177,33 +285,6 @@ class App:
         
         root.destroy()
     
-    def unPas(self):
-        self.maint_transmission(2,2,1,10)
-        self.maint_transmission(3,2,1,-10)
-        time.sleep(3)
-        self.maint_transmission(0,2,1,-15)
-        time.sleep(1)
-        self.maint_transmission(0,2,0,16)
-        time.sleep(1)
-        self.maint_transmission(0,2,1,-31.18)
-        time.sleep(2)
-        self.maint_transmission(2,2,1,31.18)
-        self.maint_transmission(3,2,1,-31.18)
-
-
-    def positionNeutre(self):
-        self.maint_transmission(0,2,0,8.93)
-        self.maint_transmission(1,2,0,-8.93)
-        time.sleep(4)
-        self.maint_transmission(0,2,1,-31.18)
-        self.maint_transmission(1,2,1,31.18)
-        time.sleep(4)
-        self.maint_transmission(2,2,0,-8.93)
-        self.maint_transmission(3,2,0,8.93)
-        time.sleep(4)
-        self.maint_transmission(2,2,1,31.18)
-        self.maint_transmission(3,2,1,-31.18)
-        
     def incrAngle(self,leg,motor):
         if motor == 'A':
             self.maint_transmission(leg,1,0,5)
@@ -215,56 +296,6 @@ class App:
             self.maint_transmission(leg,1,0,-5)
         elif motor == 'B':
             self.maint_transmission(leg,1,1,-5)
-            
-    def frontUp(self):
-        self.maint_transmission(0,1,1,-20)
-        self.maint_transmission(1,1,1,20)
-    
-    def getUp(self):
-        self.maint_transmission(0,1,1,-20)
-        self.maint_transmission(1,1,1,20)
-        time.sleep(1)
-        self.maint_transmission(2,1,1,20)
-        self.maint_transmission(3,1,1,-20)
-
-    def getDown(self):
-        self.maint_transmission(3,1,1,20)
-        self.maint_transmission(2,1,1,-20)
-        time.sleep(1)
-        self.maint_transmission(1,1,1,-20)
-        self.maint_transmission(0,1,1,20)
-        
-    def unPeudeTout(self):
-        self.maint_transmission(0,2,1,-10)
-        self.maint_transmission(1,2,1,10)
-        time.sleep(1)
-        self.maint_transmission(0,2,0,5)
-        self.maint_transmission(1,2,0,-5)
-        time.sleep(1)
-        self.maint_transmission(2,2,1,10)
-        self.maint_transmission(3,2,1,-10)
-        time.sleep(1)
-        self.maint_transmission(2,2,0,-5)
-        self.maint_transmission(3,2,0,5)
-    
-    def goTo_zero(self):
-        self.maint_transmission(0,2,1,0)
-        self.maint_transmission(1,2,1,0)
-        time.sleep(1)
-        self.maint_transmission(0,2,0,0)
-        self.maint_transmission(1,2,0,0)
-        time.sleep(1)
-        self.maint_transmission(2,2,1,0)
-        self.maint_transmission(3,2,1,0)
-        time.sleep(1)
-        self.maint_transmission(2,2,0,0)
-        self.maint_transmission(3,2,0,0)
-    
-    def setZero(self):
-        self.maint_transmission(0,0)
-        self.maint_transmission(1,0)
-        self.maint_transmission(2,0)
-        self.maint_transmission(3,0)
         
     def check_thread(self):
         for i in threading.enumerate():
@@ -274,21 +305,37 @@ class App:
         return self._mainEventArray[event].is_set()
     
     def maint_transmission(self,adress,val1=0,val2=0,val3=0):
-        #try:
-        logging.debug("Sending to %s: <%1d,%1d,%1d>" %(self.threadList[adress].name,val1,val2,val3))
-        self.threadList[adress].queue.put("<%1d,%1d,%1d>" %(val1,val2,val3))
-        self.threadList[adress].set_event_interface()
-        self.threadList[adress]._transmit_event.set()
-        self.threadList[adress].queue.join()
+        self.mainTransmitList.append([adress,val1,val2,val3])
+    
+    def delay_transmission(self,waitingTime):
+        self.mainTransmitList.append(waitingTime)
+        
+    def tryTransmit(self):
+        if (len(self.mainTransmitList) > 0):
+            self.current_time = time.time()
+            if self.current_time >= self.target_time:
+                if isinstance(self.mainTransmitList[0],list):
+                    a = self.mainTransmitList.pop(0)
+                    logging.debug("Sending to %s: <%1d,%1d,%1d>" %(self.threadList[a[0]].name,a[1],a[2],a[3]))
+                    self.threadList[a[0]].queue.put("<%1d,%1d,%1d>" %(a[1],a[2],a[3]))
+                    self.threadList[a[0]]._transmit_event.set() 
+                    self.threadList[a[0]].queue.join()
+                else :
+                    self.target_time = self.current_time+self.mainTransmitList.pop(0)
+        
     def maint_reception(self): 
         for i in self._mainEventArray:
             if i.is_set():
                 t=self.threadList[self._mainEventArray.index(i)]
                 self.unBuffer = t.queue.get()
-                logging.debug("rcvd from %s: %s",t,self.unBuffer)
                 t.queue.task_done()
                 i.clear()
-        root.after(10, self.maint_reception)
+                logging.debug("rcvd from %s: %s",t.name,self.unBuffer)             
+        
+    def main_loop(self):
+        self.tryTransmit()
+        self.maint_reception()
+        root.after(2, self.main_loop)
 
 class MyStoppableThread(threading.Thread):
     """Thread class with a stop() method. The thread itself has to check
@@ -326,10 +373,10 @@ class MyStoppableThread(threading.Thread):
                 logging.debug('Exiting')
                 self.ser.close() 
                 break
-            if self.check_event_interface():
+            if self._transmit_event.is_set():
                 self.recept_from_interface()
                 self.transmit_to_leg()
-                self._transmit_event.clear()
+                
             else:
                 self.recept_from_leg()
                 if (self.flagGotSmthgFromLeg == 0):
@@ -343,16 +390,11 @@ class MyStoppableThread(threading.Thread):
 
     def checkIfStopped(self):
         return self._stop_event.is_set()
-    
-    def set_event_interface(self):
-        self._transmit_event.set()
         
-    def check_event_interface(self):
-        return self._transmit_event.is_set()
-    
     def recept_from_interface(self):
         self.intrfBuffer = self.queue.get()
         self.queue.task_done()
+        self._transmit_event.clear()
         
     def transmit_to_interface(self):
         self.queue.put(self.serBuffer)
@@ -363,7 +405,7 @@ class MyStoppableThread(threading.Thread):
     def recept_from_leg(self):
         while True:
             c = self.ser.read()
-            #logging.debug("Received char %s", c)
+            
             if len(c) == 0:
                 break
             elif (c == ":" and self.flagRecept == 0):
@@ -375,13 +417,56 @@ class MyStoppableThread(threading.Thread):
                     self.flagRecept = 0
                     break
                 else:
+                    #logging.debug("Received char %s", c)
                     self.serBuffer += c
                     
     def transmit_to_leg(self):
         logging.debug("Sending: %s" %(self.intrfBuffer))
         self.ser.write("%s" %(self.intrfBuffer))
-        
         self.intrfBuffer = ''
+        
+class GradientFrame(tk.Canvas):
+    '''A gradient frame which uses a canvas to draw the background'''
+    def __init__(self, parent, color1="red", color2="black", color3="white", **kwargs):
+        tk.Canvas.__init__(self, parent, **kwargs)
+        self._color1 = color1
+        self._color2 = color2
+        self._color3 = color3
+        self.bind("<Configure>", self._draw_gradient)
+
+    def _draw_gradient(self, event=None):
+        '''Draw the gradient'''
+        self.delete("gradient")
+        width = self.winfo_width()
+        height = self.winfo_height()
+        limit = width
+        (r1,g1,b1) = self.winfo_rgb(self._color1)
+        (r2,g2,b2) = self.winfo_rgb(self._color2)
+        (r3,g3,b3) = self.winfo_rgb(self._color3)
+        r12_ratio = float(r2-r1) / limit
+        g12_ratio = float(g2-g1) / limit
+        b12_ratio = float(b2-b1) / limit
+        r23_ratio = float(r3-r2) / limit
+        g23_ratio = float(g3-g2) / limit
+        b23_ratio = float(b3-b2) / limit
+
+        for i in range(width):
+            nr = int(r1 + (r12_ratio * i))
+            ng = int(g1 + (g12_ratio * i))
+            nb = int(b1 + (b12_ratio * i))
+            color = "#%4.4x%4.4x%4.4x" % (nr,ng,nb)
+            #self.create_line(i,height,0,height-i, tags=("gradient",), fill=color)
+            self.create_line(0,height-i*(height*1.0/(width*1.0)),i,height, tags=("gradient",), fill=color)
+        
+        for i in range(width):
+            nr = int(r2 + (r23_ratio * i))
+            ng = int(g2 + (g23_ratio * i))
+            nb = int(b2 + (b23_ratio * i))
+            color = "#%4.4x%4.4x%4.4x" % (nr,ng,nb)
+            #self.create_line(i,height,0,height-i, tags=("gradient",), fill=color)
+            self.create_line(width,height-i,i,0, tags=("gradient",), fill=color)
+       
+        self.lower("gradient")
         
 def main():
     global app
@@ -394,7 +479,7 @@ def main():
     root=tk.Tk()
     root.title("Projet SpaceDog, The SPACE, Stage Andrea Ventura")
     app = App(root)
-    root.after(10, app.maint_reception)
+    root.after(10, app.main_loop)
     root.mainloop()
     
 if __name__ == '__main__':
