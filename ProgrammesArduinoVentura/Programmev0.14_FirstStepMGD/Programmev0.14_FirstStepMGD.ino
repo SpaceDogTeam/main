@@ -9,8 +9,6 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <PID_v1.h>
-//#include <Math.h>
-//#include <Wire.h>
 
 //----------------leg----------------------------
 #define A_PWM_PIN  5       // Speed of motor A and B in PWM units, value from 0 to 255
@@ -18,11 +16,11 @@
 // Motor A is top motor B is botom
 #define B_PWM_PIN  7
 #define B_EN_PIN   8
-//                                                 EN1     EN2     OUT
+//                                                                            EN1     EN2     OUT
 #define C_PWM_PIN 2        // Motor C is shoulder                              0       0      Brake
 #define C_EN1_PIN 3        // Different driver than A and B, 2 enable pins     0       1      Forward
 #define C_EN2_PIN 4        // Follow this table for direction:                 1       0      Reverse
-// (C_EN1 & 2 are reversed compared to datasheet)   1       1      Float
+// (C_EN1 & 2 are reversed compared to datasheet)                              1       1      Float
 
 //----------------Encoders / potentiometer-----------------------
 #define A_CS_PIN 48 //Chip or Slave select Angle A
@@ -179,7 +177,6 @@ void setup()
 
 ISR(TIMER3_COMPA_vect)  //function executed when timer3 interrupt
 { //Angular position mesurments
-
   getPosition(0);
   getPosition(1);
   getShoulderPosition();
@@ -187,7 +184,7 @@ ISR(TIMER3_COMPA_vect)  //function executed when timer3 interrupt
 
 ISR(TIMER4_COMPA_vect)  //function executed when timer4 interrupt
 { //PID computation
-
+  //Serial.println("hello3");
   myPIDmotorA.Compute();
   moveMotor(0);
   myPIDmotorB.Compute();
@@ -210,7 +207,7 @@ uint8_t SPI_T (int index, uint8_t msg)    //Repetive SPI transmit sequence
   digitalWrite(encoderCSPinsArray[index], LOW); //  select spi device
   msg_temp = SPI.transfer(msg); // sends (receive) message to (from) the encoder #index
   digitalWrite(encoderCSPinsArray[index], HIGH); //  deselect spi device
-  delayMicroseconds(10);   //delay here to prevent the AMT20 from having to prioritize SPI over obtaining our position
+  //delayMicroseconds(10);   //delay here to prevent the AMT20 from having to prioritize SPI over obtaining our position
   return (msg_temp);    //return received byte
 }
 
@@ -250,6 +247,30 @@ void getPosition(int index) {
   legsAnglesPrevious[index] = legsAngles[index];
 }
 
+void MGD_calculation(){
+  const double a = 443.77;
+  const double b = 424.62;
+  double a1, a2;
+  double b1, b2;
+  const double a_angle_offset = 53.38;
+  const double b_angle_offset = 73.10;
+  double a_angle, b_angle;
+  double pos_x, pos_z;
+  
+  a_angle = (legsAngles[0]-legsAnglesZero[0])+a_angle_offset;
+  a1 = sin(a_angle*PI/180)*a;
+  a2 = cos(a_angle*PI/180)*a;
+
+  b_angle = (legsAngles[1]-legsAnglesZero[1])+b_angle_offset;
+  b1 = sin((b_angle-a_angle)*PI/180)*b;
+  b2 = cos((b_angle-a_angle)*PI/180)*b;
+
+  pos_x = -a2+b2;
+  pos_z = a1+b1;
+
+  Serial.println(":("+String(pos_x)+","+String(pos_z)+");");
+}
+
 void getShoulderPosition() {
   shoulderPosition = analogRead(C_POT_PIN);
 }
@@ -278,7 +299,7 @@ void setZero() {
     legsAnglesZero[i] = legsAngles[i];
     anglesSetpointsArray[i] = legsAngles[i];
 
-    //Serial.println(":zero set for "+String(i)+" -> "+String(legsAnglesZero[i])+";");
+    Serial.println(":zero set for "+String(i)+" -> "+String(legsAnglesZero[i])+";");
   }
   getShoulderPosition();
   shoulderZeroPosition = shoulderPosition;
@@ -328,26 +349,25 @@ void recvWithStartEndMarkers() {
   char endMarker = '>';
   char rc;
 
-  while (Serial.available() > 0 && newData == false) {
+  if(Serial.available() > 0) {
     rc = Serial.read();
-
-    if (recvInProgress == true) {
-      if (rc != endMarker) {
-        receivedChars[ndx] = rc;
-        ndx++;
-        if (ndx >= numChars) {
-          ndx = numChars - 1;
-        }
-      }
-      else {
-        receivedChars[ndx] = '\0'; // terminate the string
-        recvInProgress = false;
-        ndx = 0;
-        newData = true;
+    if (rc == endMarker) {
+      recvInProgress = false;
+      newData = true;
+      receivedChars[ndx] = 0;
+      parseData();
+    }
+    
+    if(recvInProgress) {
+      receivedChars[ndx] = rc;
+      ndx ++;
+      if (ndx == numChars) {
+        ndx = numChars - 1;
       }
     }
 
-    else if (rc == startMarker) {
+    if (rc == startMarker) { 
+      ndx = 0; 
       recvInProgress = true;
     }
   }
@@ -386,35 +406,36 @@ void interpretData() {
   else if (val1 == 3) {
     transmission(1);
   }
+  else if (val1 == 4) {
+    MGD_calculation();
+  }
 }
 
 void reception() {
   recvWithStartEndMarkers();
   if (newData == true) {
-    strcpy(tempChars, receivedChars);
-    // this temporary copy is necessary to protect the original data
-    //   because strtok() replaces the commas with \0
+    strcpy(tempChars, receivedChars); //copy to protect original data
     parseData();
-    //showParsedData();
     interpretData();
     newData = false;
   }
 }
 
 void transmission(int flag) {
-  char  buff[20];
+  char  buff[40]="";
   if (flag == 0) {
     char  s0[20];
-    dtostrf(val3, 3, 2, s0);
+    dtostrf(val3, 4, 2, s0);
     sprintf(buff, ":ack <%d,%d,%s>;", val1, val2, s0);
     Serial.flush();
     Serial.println(buff);
   }
   else if (flag == 1) {
-    char  s0[20];
-    char  s1[20];
-    dtostrf(legsAngles[0], 3, 2, s0);
-    dtostrf(legsAngles[1], 3, 2, s1);
+    char  s0[10];
+    char  s1[10];
+    Serial.println("hello");
+    dtostrf(legsAngles[0], 4, 2, s0);
+    dtostrf(legsAngles[1], 4, 2, s1);
     sprintf(buff, ":pos is %s,%s;", s0, s1);
     Serial.flush();
     Serial.println(buff);

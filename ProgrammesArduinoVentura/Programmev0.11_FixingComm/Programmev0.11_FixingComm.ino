@@ -59,8 +59,8 @@ int kP = 100;
 
 //--------------------PID Lib variables--------------------------
 
-PID myPIDmotorA(&legsAngles[0],&pwmValue[0],&anglesSetpointsArray[0],100,0,0,REVERSE);
-PID myPIDmotorB(&legsAngles[1],&pwmValue[1],&anglesSetpointsArray[1],100,0,0,DIRECT);
+PID myPIDmotorA(&legsAngles[0],&pwmValue[0],&anglesSetpointsArray[0],100,0,0,DIRECT);
+PID myPIDmotorB(&legsAngles[1],&pwmValue[1],&anglesSetpointsArray[1],100,0,0,REVERSE);
 //---------------------------------------------------------------
 //---------------data and transmissions variables----------------
 int val1, val2;

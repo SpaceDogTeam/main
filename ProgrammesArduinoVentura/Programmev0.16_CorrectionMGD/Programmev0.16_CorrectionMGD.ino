@@ -1,28 +1,29 @@
 // Program for each arduino of the SpaceDog Project from The SPACE by Andrea Ventura
 // Each arduino control 1 leg
 // The programm is the same for each leg, EXCEPT:
-// !!!!!! Set the var r_dir to 0 for Front Left and Back Right leg (legs 0 and 3)
-// !!!!!! and 1 for the Front Right and Back Left legs (legs 1 and 2)
-// !!!!!! because of the way the encoders for angle mesurments are mounted
+// !!!!!! Set the LEG value acording to the leg you are uploading this program to
+// !!!!!! Correct values are 0/1/2/3 for front left/front right/rear left/rear right leg
+// !!!!!! The programme then takes care of setting peculiar variables and value specific to each leg 
+// !!!!!! Things like minimal angle value (angleZero) or wich PID is reversed due...
+// !!!!!! ...to the way the encoders for angle mesurments are mounted are taken care of.
 
 #include <SPI.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <PID_v1.h>
-//#include <Math.h>
-//#include <Wire.h>
-
-//----------------leg----------------------------
+//----------------!!!!!Leg choice!!!!!-------------------
+#define LEG 3              // set to 0/1/2/3 accordingly
+//----------------output pins----------------------------
 #define A_PWM_PIN  5       // Speed of motor A and B in PWM units, value from 0 to 255
 #define A_EN_PIN   6       // This sets the direction of motor A and B, set to HIGH for outward motion and LOW for inward motion
 // Motor A is top motor B is botom
 #define B_PWM_PIN  7
 #define B_EN_PIN   8
-//                                                 EN1     EN2     OUT
+//                                                                            EN1     EN2     OUT
 #define C_PWM_PIN 2        // Motor C is shoulder                              0       0      Brake
 #define C_EN1_PIN 3        // Different driver than A and B, 2 enable pins     0       1      Forward
 #define C_EN2_PIN 4        // Follow this table for direction:                 1       0      Reverse
-// (C_EN1 & 2 are reversed compared to datasheet)   1       1      Float
+// (C_EN1 & 2 are reversed compared to datasheet)                              1       1      Float
 
 //----------------Encoders / potentiometer-----------------------
 #define A_CS_PIN 48 //Chip or Slave select Angle A
@@ -30,11 +31,9 @@
 
 #define C_POT_PIN A0  // feedback for shoulder
 
-#define WAITING_MS 20 // time left by the master between reads
-#define WAITING_DS 150
+//-----------------------------Direction setting---------------------
+//To reverse or not the PID
 
-//---------------------------!!Direction setting!!-------------------
-const bool r_dir = 0;  //set to 0 for FL leg and BR leg, 1 for FR leg and BL leg
 //----------------Angles Mesurments and calculation variables--------
 
 uint8_t temp[2]; // contains the MSB, LSB of the position
@@ -71,8 +70,13 @@ int kP = 100;
 int kP_Shoulder = 100;
 //--------------------PID Lib variables--------------------------
 
-PID myPIDmotorA(&legsAngles[0], &pwmValue[0], &anglesSetpointsArray[0], kP, 0, 0, r_dir); //r_dir=1 -> reversed, 0 -> direct
-PID myPIDmotorB(&legsAngles[1], &pwmValue[1], &anglesSetpointsArray[1], kP, 0, 0, !r_dir); //the opposite
+#if LEG==0 or LEG==3
+PID myPIDmotorA(&legsAngles[0], &pwmValue[0], &anglesSetpointsArray[0], kP, 0, 0, DIRECT);  //direction is changed later...
+PID myPIDmotorB(&legsAngles[1], &pwmValue[1], &anglesSetpointsArray[1], kP, 0, 0, REVERSE);  //...according to leg value
+#else
+PID myPIDmotorA(&legsAngles[0], &pwmValue[0], &anglesSetpointsArray[0], kP, 0, 0, REVERSE);  //direction is changed later...
+PID myPIDmotorB(&legsAngles[1], &pwmValue[1], &anglesSetpointsArray[1], kP, 0, 0, DIRECT);  //...according to leg value
+#endif
 
 PID myPIDmotorC(&shoulderPosition, &pwmValue[2], &shoulderSetpoint, kP_Shoulder, 0, 0, DIRECT);
 
@@ -111,28 +115,26 @@ void setup()
 
 
 
-  //------initialize Timer3 for measure and Timer4 for PID--------
-
+  //------initialize Timer1 for measure and Timer4 for PID--------
   //visit http://www.engblaze.com/microcontroller-tutorial-avr-and-arduino-timer-interrupts/
   //for a great little tutorial about timer interrupts
   //most of the basic interupt routine used here comes from there
 
-
   cli();  // disable global interrupts
 
-  TCCR3A = 0; // set entire TCCR3A register to 0
-  TCCR3B = 0; // same for TCCR3B
+  TCCR1A = 0; // set entire TCCR1A register to 0
+  TCCR1B = 0; // same for TCCR1B
 
-  TCNT3 = 2500;            //offset the timer by 10ms
+  TCNT1 = 2500;            //offset the timer by 10ms
   // set compare match register to desired timer count:
-  OCR3A = 5000;            //5000 for 20ms timer with 64 prescaler
+  OCR1A = 5000;            //5000 for 20ms timer with 64 prescaler
   // turn on CTC mode:
-  TCCR3B |= (1 << WGM32);
-  // Set CS30 and 31 bit for 64 prescaler:
-  TCCR3B |= (1 << CS30);
-  TCCR3B |= (1 << CS31);
+  TCCR1B |= (1 << WGM12);
+  // Set CS10 and 11 bit for 64 prescaler:
+  TCCR1B |= (1 << CS10);
+  TCCR1B |= (1 << CS11);
   // enable timer compare interrupt:
-  TIMSK3 |= (1 << OCIE3A);
+  TIMSK1 |= (1 << OCIE1A);
 
   //------------------------------------------------------------------
 
@@ -158,28 +160,22 @@ void setup()
   SPI.setBitOrder(MSBFIRST);
   SPI.setDataMode(SPI_MODE0);
   SPI.setClockDivider(SPI_CLOCK_DIV64);
-
   SPI.end();
-
-
   //---------------------------End SPI---------------------------------
   //-----------------------PID Library setup---------------------------
-
   myPIDmotorA.SetOutputLimits(-255, 255);
   myPIDmotorA.SetSampleTime(0);
   myPIDmotorB.SetOutputLimits(-255, 255);
   myPIDmotorB.SetSampleTime(0);
   myPIDmotorC.SetOutputLimits(-255, 255);
   myPIDmotorC.SetSampleTime(0);
-
   //-------------------------------------------------------------------
   Serial.begin(9600);
   Serial.flush();
 }
 
-ISR(TIMER3_COMPA_vect)  //function executed when timer3 interrupt
+ISR(TIMER1_COMPA_vect)  //function executed when timer3 interrupt
 { //Angular position mesurments
-
   getPosition(0);
   getPosition(1);
   getShoulderPosition();
@@ -187,14 +183,13 @@ ISR(TIMER3_COMPA_vect)  //function executed when timer3 interrupt
 
 ISR(TIMER4_COMPA_vect)  //function executed when timer4 interrupt
 { //PID computation
-
+  //Serial.println("hello3");
   myPIDmotorA.Compute();
   moveMotor(0);
   myPIDmotorB.Compute();
   moveMotor(1);
   myPIDmotorC.Compute();
   moveShoulder(2);
-
 }
 
 
@@ -210,7 +205,7 @@ uint8_t SPI_T (int index, uint8_t msg)    //Repetive SPI transmit sequence
   digitalWrite(encoderCSPinsArray[index], LOW); //  select spi device
   msg_temp = SPI.transfer(msg); // sends (receive) message to (from) the encoder #index
   digitalWrite(encoderCSPinsArray[index], HIGH); //  deselect spi device
-  delayMicroseconds(10);   //delay here to prevent the AMT20 from having to prioritize SPI over obtaining our position
+  delayMicroseconds(5);   //delay here to prevent the AMT20 from having to prioritize SPI over obtaining our position
   return (msg_temp);    //return received byte
 }
 
@@ -250,6 +245,41 @@ void getPosition(int index) {
   legsAnglesPrevious[index] = legsAngles[index];
 }
 
+void MGD_calculation(){          //Calculating foot (end effector) position based on angle value
+  const double len_a = 443.77;   //Femur lenght (mm)
+  const double len_b = 424.62;   //Tibia lenght (mm)
+  const double a_angle_offset = 53.38;    //Real minimal angle between femur and horizontal (trunk of the robot) in degrees
+  const double b_angle_offset = 73.10;    //Real minimal angle between tibia and horizontal (trunk of the robot) in degrees
+  double a_delta, b_delta;       //Diff between angles measured and min angles (software values)
+  double a_angle, b_angle;       //Calculated real angle value
+  double a1, a2;                 //Femur lenght projected 1:vertically (Z axis), 2:horizontally (X axis)
+  double b1, b2;                 //Tibia lenght projected 1:vertically (Z axis), 2:horizontally (X axis)
+  double pos_x, pos_z;           //X and Z axis position of robot foot (end effector)
+  
+  a_delta = legsAngles[0]-legsAnglesZero[0];
+  b_delta = legsAngles[1]-legsAnglesZero[1];
+  
+  if (LEG == 0 or LEG == 3){                 //either a or b angle measurment encoder mounted backward...
+    b_delta = -b_delta;                      //...depending on leg, need to adapt calculation acordingly
+  }
+  else{
+    a_delta = -a_delta;
+  }
+  
+  a_angle = a_delta+a_angle_offset;
+  a1 = sin(a_angle*PI/180)*len_a;
+  a2 = cos(a_angle*PI/180)*len_a;
+
+  b_angle = b_delta+b_angle_offset;
+  b1 = sin((b_angle-a_angle)*PI/180)*len_b;
+  b2 = cos((b_angle-a_angle)*PI/180)*len_b;
+
+  pos_x = -a2+b2;
+  pos_z = a1+b1;
+
+  Serial.println(":("+String(pos_x)+","+String(pos_z)+");");
+}
+
 void getShoulderPosition() {
   shoulderPosition = analogRead(C_POT_PIN);
 }
@@ -278,7 +308,7 @@ void setZero() {
     legsAnglesZero[i] = legsAngles[i];
     anglesSetpointsArray[i] = legsAngles[i];
 
-    //Serial.println(":zero set for "+String(i)+" -> "+String(legsAnglesZero[i])+";");
+    Serial.println(":zero set for "+String(i)+" -> "+String(legsAnglesZero[i])+";");
   }
   getShoulderPosition();
   shoulderZeroPosition = shoulderPosition;
@@ -328,26 +358,25 @@ void recvWithStartEndMarkers() {
   char endMarker = '>';
   char rc;
 
-  while (Serial.available() > 0 && newData == false) {
+  if(Serial.available() > 0) {
     rc = Serial.read();
-
-    if (recvInProgress == true) {
-      if (rc != endMarker) {
-        receivedChars[ndx] = rc;
-        ndx++;
-        if (ndx >= numChars) {
-          ndx = numChars - 1;
-        }
-      }
-      else {
-        receivedChars[ndx] = '\0'; // terminate the string
-        recvInProgress = false;
-        ndx = 0;
-        newData = true;
+    if (rc == endMarker) {
+      recvInProgress = false;
+      newData = true;
+      receivedChars[ndx] = 0;
+      parseData();
+    }
+    
+    if(recvInProgress) {
+      receivedChars[ndx] = rc;
+      ndx ++;
+      if (ndx == numChars) {
+        ndx = numChars - 1;
       }
     }
 
-    else if (rc == startMarker) {
+    if (rc == startMarker) { 
+      ndx = 0; 
       recvInProgress = true;
     }
   }
@@ -386,35 +415,36 @@ void interpretData() {
   else if (val1 == 3) {
     transmission(1);
   }
+  else if (val1 == 4) {
+    MGD_calculation();
+  }
 }
 
 void reception() {
   recvWithStartEndMarkers();
   if (newData == true) {
-    strcpy(tempChars, receivedChars);
-    // this temporary copy is necessary to protect the original data
-    //   because strtok() replaces the commas with \0
+    strcpy(tempChars, receivedChars); //copy to protect original data
     parseData();
-    //showParsedData();
     interpretData();
     newData = false;
   }
 }
 
 void transmission(int flag) {
-  char  buff[20];
+  char  buff[40]="";
   if (flag == 0) {
     char  s0[20];
-    dtostrf(val3, 3, 2, s0);
+    dtostrf(val3, 4, 2, s0);
     sprintf(buff, ":ack <%d,%d,%s>;", val1, val2, s0);
     Serial.flush();
     Serial.println(buff);
   }
   else if (flag == 1) {
-    char  s0[20];
-    char  s1[20];
-    dtostrf(legsAngles[0], 3, 2, s0);
-    dtostrf(legsAngles[1], 3, 2, s1);
+    char  s0[10];
+    char  s1[10];
+    Serial.println("hello");
+    dtostrf(legsAngles[0], 4, 2, s0);
+    dtostrf(legsAngles[1], 4, 2, s1);
     sprintf(buff, ":pos is %s,%s;", s0, s1);
     Serial.flush();
     Serial.println(buff);

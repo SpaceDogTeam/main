@@ -262,7 +262,7 @@ class App:
     def quitter(self):
         for i in self.threadList:
             i.stop()
-            i.join()
+            i.join() 
         
         root.destroy()
     
@@ -389,7 +389,7 @@ class MyStoppableThread(threading.Thread):
                 self.flagRecept = 1
             elif self.flagRecept == 1:
                 if c == ";":
-                    logging.debug("Received: %s", self.serBuffer)
+                    #logging.debug("Received: %s", self.serBuffer)
                     self.flagGotSmthgFromLeg = 1
                     self.flagRecept = 0
                     break
