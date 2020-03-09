@@ -278,7 +278,7 @@ void MGD_calculation(){          //Calculating foot (end effector) position base
   pos_x = -a2+b2;
   pos_z = a1+b1;
 
-  Serial.println(":("+String(pos_x)+","+String(pos_z)+");");
+  //Serial.println(":("+String(pos_x)+","+String(pos_z)+");");
 }
 
 void getShoulderPosition() {
@@ -316,7 +316,7 @@ void turnOnOrOff() {
       getPosition(i);
       //legsAnglesZero[i] = legsAngles[i];
       anglesSetpointsArray[i] = legsAngles[i];
-      Serial.println(":zero set for "+String(i)+" -> "+String(legsAnglesZero[i])+";");
+      //Serial.println(":zero set for "+String(i)+" -> "+String(legsAnglesZero[i])+";");
     }
     flagOn = 1;
     myPIDmotorA.SetMode(AUTOMATIC);
@@ -374,12 +374,12 @@ void recvWithStartEndMarkers() {
 
   if(Serial.available() > 0) {
     Serial.readBytes(rc,1);
-    Serial.println(rc[0]);
+    //Serial.println(rc[0]);
     if (rc[0] == endMarker) {
       recvInProgress = false;
       newData = true;
       receivedChars[ndx] = 0;
-      Serial.println(receivedChars);
+      //Serial.println(receivedChars);
       parseData();
     }
     
@@ -453,17 +453,16 @@ void transmission(int flag) {
     dtostrf(val3, 4, 2, s0);
     sprintf(buff, ":ack <%d,%d,%s>;", val1, val2, s0);
     Serial.flush();
-    Serial.println(buff);
+    //Serial.println(buff);
   }
   else if (flag == 1) {
     char  s0[10];
     char  s1[10];
-    Serial.println("hello");
     dtostrf(legsAngles[0], 4, 2, s0);
     dtostrf(legsAngles[1], 4, 2, s1);
     sprintf(buff, ":pos is %s,%s;", s0, s1);
     Serial.flush();
-    Serial.println(buff);
+    //Serial.println(buff);
   }
 }
 
