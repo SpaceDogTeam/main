@@ -54,7 +54,9 @@ double legsAnglesPrevious[2] = {0, 0};    // memory of previous angle value mesu
 
 //memory value for the minimal measured angle for motor A and B of each leg (actuator fully retracted)
 double memLegsAnglesZero[8] = {266.13, 54.76, 7.03, 61.79, 313.77, 203.90, 42.63, 235.72};
+double memLegsAnglesMax[8] = {266.13+17.86, 54.76-62.36, 7.03-17.86, 61.79+62.36, 313.77-17.86, 203.90+62.36, 42.63+17.86, 235.72-62.36};
 double legsAnglesZero[2];        //take two (motor A and B) value from the above according to LEG value
+double legsAnglesMax[2];
 double shoulderZeroPosition = 500;
 
 double anglesSetpointsArray[2] = {0, 0};
@@ -80,8 +82,8 @@ PID myPIDmotorC(&shoulderPosition, &pwmValue[2], &shoulderSetpoint, kP_Shoulder,
 
 //---------------------------------------------------------------
 //---------------data and transmissions variables----------------
-int val1, val2;
-double val3; 
+int val1;
+double val2, val3; 
 
 const byte numChars = 32;
 char receivedChars[numChars];
@@ -92,12 +94,14 @@ char messageFromPC[numChars] = {0};
 
 boolean newData = false;
 //---------------------------------------------------------------
-
+double MGI_alpha, MGI_beta;
 void setup()
 {
   //---------------------Setting default minimum Angle-----------
   legsAnglesZero[0] = memLegsAnglesZero[2*LEG];
   legsAnglesZero[1] = memLegsAnglesZero[2*LEG+1];
+  legsAnglesMax[0] = memLegsAnglesMax[2*LEG];
+  legsAnglesMax[1] = memLegsAnglesMax[2*LEG+1];
   //-------------------------------------------------------------
   pinMode(A_CS_PIN, OUTPUT);
   pinMode(B_CS_PIN, OUTPUT);
@@ -154,7 +158,9 @@ void setup()
 
   sei();  // enable global interrupts
 
-
+  
+    
+  
   //--------------------End initialize Timer4--------------------------
   //----------Initialize SPI comm for encoders mesurments--------------
   SPI.begin();
@@ -163,6 +169,30 @@ void setup()
   SPI.setClockDivider(SPI_CLOCK_DIV64);
   SPI.end();
   //---------------------------End SPI---------------------------------
+
+  for (int i = 0; i <= 1; i++){
+    getPosition(i);
+    if(legsAnglesZero[i] < legsAnglesMax[i]){
+      if(legsAngles[i] < legsAnglesZero[i]){
+        legsAngles[i] += 360;
+        encoderNtours[i] += 1;
+      } 
+    }
+    else if(legsAnglesZero[i] > legsAnglesMax[i]){
+      if(legsAngles[i] > legsAnglesZero[i]){
+        legsAngles[i] -= 360;
+        encoderNtours[i] -= 1;
+      }
+    }
+    legsAnglesPrevious[i] = legsAngles[i];
+  }
+  /*
+  legsAngles
+  legsAnglesPrevious
+  encoderNtours
+  double memLegsAnglesZero[8] = {266.13, 54.76, 7.03, 61.79, 313.77, 203.90, 42.63, 235.72};
+  double memLegsAnglesMax[8] = {266.13+17.86, 54.76-62.36, 7.03-17.86, 61.79+62.36, 313.77-17.86, 203.90+62.36, 42.63+17.86, 235.72-62.36};
+  */
   //-----------------------PID Library setup---------------------------
   myPIDmotorA.SetOutputLimits(-255, 255);
   myPIDmotorA.SetSampleTime(0);
@@ -192,8 +222,6 @@ ISR(TIMER4_COMPA_vect)  //function executed when timer4 interrupt
   myPIDmotorC.Compute();
   moveShoulder(2);
 }
-
-
 
 double mapfloat(double x, double in_min, double in_max, double out_min, double out_max)
 {
@@ -278,7 +306,80 @@ void MGD_calculation(){          //Calculating foot (end effector) position base
   pos_x = -a2+b2;
   pos_z = a1+b1;
 
-  //Serial.println(":("+String(pos_x)+","+String(pos_z)+");");
+  Serial.println(":("+String(pos_x)+","+String(pos_z)+");");
+}
+
+void MGI_calculation(double x, double y){
+  //http://nains-games.over-blog.com/2014/12/intersection-de-deux-cercles.html
+  double Xp = x;       //point pied
+  double Yp = y;     
+  double Xg1,Yg1,Xg2,Yg2;      //point genoux
+  double hypo = sqrt(Xp*Xp+Yp*Yp);
+  const double len_f = 443.77;   //Femur lenght (mm)
+  const double len_t = 424.62;   //Tibia lenght (mm)
+  const double f_angle_offset = 53.38;    //Real minimal angle between femur and horizontal (trunk of the robot) in degrees
+  const double t_angle_offset = 73.10;    //Real minimal angle between tibia and horizontal (trunk of the robot) in degrees
+  double f_delta, t_delta;       //Diff between angles measured and min angles (software values)
+  double f_angle, t_angle;       //Calculated real angle value
+  double f1, f2;                 //Femur lenght projected 1:vertically (Z axis), 2:horizontally (X axis)
+  double t1, t2;                 //Tibia lenght projected 1:vertically (Z axis), 2:horizontally (X axis)
+
+  // beta calc
+  t_angle = (acos((-hypo*hypo+len_f*len_f+len_t*len_t)/(2*len_f*len_t))*180/PI);
+  //Circles intersection:
+  double a = (Xp*Xp+Yp*Yp+len_f*len_f-len_t*len_t)/(2*Yp);
+  double d = Xp/Yp;
+  double A = d*d+1;
+  double B = -2*a*d;
+  double C = a*a-len_f*len_f;
+  double Delta = B*B-4*A*C;
+  //
+  Xg1 = (-B+sqrt(Delta))/(2*A);
+  Yg1 = a-((-B+sqrt(Delta))/(2*A))*d;
+
+  Xg2 = (-B-sqrt(Delta))/(2*A);
+  Yg2 = a-((-B-sqrt(Delta))/(2*A))*d;
+  //
+  f_angle = 180 - (acos((Xg1/len_f))*180/PI);
+  Serial.println(": alpha"+String(f_angle)+", beta"+String(t_angle)+";");
+  if(LEG == 0 or LEG == 3 ) {
+    if(f_angle >= f_angle_offset and f_angle <= f_angle_offset+17.86){
+      Serial.println(":hello1;");
+    }
+    else{
+      f_angle = 180 - (acos(Xg2/len_f)*180/PI);
+      if(f_angle >= f_angle_offset and f_angle <= f_angle_offset+17.86){
+        Serial.println(":hello2;");
+      }
+      else{
+        Serial.println(":out of bound;");
+      }
+    }
+  }
+  else if(LEG == 1 or LEG == 2 ){
+    if(f_angle <= f_angle_offset and f_angle >= f_angle_offset-17.86){
+      Serial.println(":hello3;");
+    }
+    else {
+      f_angle = 180 - (acos(Xg2/len_f)*180/PI);
+      if(f_angle <= f_angle_offset and f_angle >= f_angle_offset-17.86){
+        Serial.println(":hello4;");
+      }
+      else{
+        Serial.println(":out of bound;");
+      }
+    }
+  }
+  
+  if (LEG == 0 or LEG == 3){                 
+    MGI_alpha = (f_angle-f_angle_offset)+legsAnglesZero[0];  //DIR
+    MGI_beta = (t_angle_offset-t_angle)+legsAnglesZero[1]; //REV                    
+  }
+  else{
+    MGI_alpha = (f_angle_offset-f_angle)+legsAnglesZero[0];  //REV
+    MGI_beta = (t_angle-t_angle_offset)+legsAnglesZero[1]; //DIR                    
+  }
+  Serial.println(": alpha"+String(f_angle)+", beta"+String(t_angle)+";");
 }
 
 void getShoulderPosition() {
@@ -314,9 +415,8 @@ void turnOnOrOff() {
   if (flagOn == 0){
     for (int i = 0; i <= 1; i++) {
       getPosition(i);
-      //legsAnglesZero[i] = legsAngles[i];
       anglesSetpointsArray[i] = legsAngles[i];
-      //Serial.println(":zero set for "+String(i)+" -> "+String(legsAnglesZero[i])+";");
+      Serial.println(":pos "+String(i)+" is "+String(legsAnglesZero[i])+" tour -> "+ String(encoderNtours[i])+";");
     }
     flagOn = 1;
     myPIDmotorA.SetMode(AUTOMATIC);
@@ -406,7 +506,7 @@ void parseData() {
   val1 = atoi(strtokIndx);             // convert this part to an integer,
   //can be to a float too with atof?
   strtokIndx = strtok(NULL, ",");
-  val2 = atoi(strtokIndx);
+  val2 = atof(strtokIndx);
 
   strtokIndx = strtok(NULL, ",");
   val3 = atof(strtokIndx);             // convert this part to a float
@@ -433,6 +533,11 @@ void interpretData() {
   }
   else if (val1 == 4) {
     MGD_calculation();
+  }
+  else if (val1 == 5) {
+    MGI_calculation(val2,val3);  //x,y
+    abslSetPoint(0,MGI_alpha);
+    abslSetPoint(0,MGI_beta);
   }
 }
 
