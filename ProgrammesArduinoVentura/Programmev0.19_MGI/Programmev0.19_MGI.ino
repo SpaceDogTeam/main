@@ -12,7 +12,7 @@
 #include <avr/interrupt.h>
 #include <PID_v1.h>
 //----------------!!!!!Leg choice!!!!!-------------------
-#define LEG 1              // set to 0/1/2/3 accordingly
+#define LEG 0             // set to 0/1/2/3 accordingly
 //----------------output pins----------------------------
 #define A_PWM_PIN  5       // Speed of motor A and B in PWM units, value from 0 to 255
 #define A_EN_PIN   6       // This sets the direction of motor A and B, set to HIGH for outward motion and LOW for inward motion
@@ -67,7 +67,7 @@ int encoderNtours[2] = {0, 0};
 int tryErrorAngle[2] = {0, 0};
 
 int kP = 100;
-int kP_Shoulder = 100;
+int kP_Shoulder = 30;
 //--------------------PID Lib variables--------------------------
 
 #if LEG==0 or LEG==3
@@ -103,6 +103,10 @@ void setup()
   legsAnglesMax[0] = memLegsAnglesMax[2*LEG];
   legsAnglesMax[1] = memLegsAnglesMax[2*LEG+1];
   //-------------------------------------------------------------
+  if(LEG == 2){
+    shoulderZeroPosition += 125;
+    shoulderSetpoint = shoulderZeroPosition;
+  }
   pinMode(A_CS_PIN, OUTPUT);
   pinMode(B_CS_PIN, OUTPUT);
 
@@ -537,7 +541,7 @@ void interpretData() {
   else if (val1 == 5) {
     MGI_calculation(val2,val3);  //x,y
     abslSetPoint(0,MGI_alpha);
-    abslSetPoint(0,MGI_beta);
+    abslSetPoint(1,MGI_beta);
   }
 }
 
