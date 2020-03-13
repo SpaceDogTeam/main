@@ -68,9 +68,9 @@ class App:
         self.FramePrincipale=GradientFrame(self.master,
                                       width=self.w_Interface,
                                       height=self.h_Interface,
-                                      color1='#e31440',
-                                      color2='#5416c5',
-                                      color3='#1e0036'
+                                      color1='#e31440',   #e31440
+                                      color2='#5416c5',   #5416c5
+                                      color3='#1e0036'    #1e0036
                                       )
         self.FramePrincipale.grid(row=0,column=0,rowspan=3,columnspan=3)
         

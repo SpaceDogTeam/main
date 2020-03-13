@@ -12,7 +12,7 @@
 #include <avr/interrupt.h>
 #include <PID_v1.h>
 //----------------!!!!!Leg choice!!!!!-------------------
-#define LEG 0             // set to 0/1/2/3 accordingly
+#define LEG 1             // set to 0/1/2/3 accordingly
 //----------------output pins----------------------------
 #define A_PWM_PIN  5       // Speed of motor A and B in PWM units, value from 0 to 255
 #define A_EN_PIN   6       // This sets the direction of motor A and B, set to HIGH for outward motion and LOW for inward motion
@@ -345,7 +345,6 @@ void MGI_calculation(double x, double y){
   Yg2 = a-((-B-sqrt(Delta))/(2*A))*d;
   //
   f_angle = 180 - (acos((Xg1/len_f))*180/PI);
-  Serial.println(": alpha"+String(f_angle)+", beta"+String(t_angle)+";");
   if(LEG == 0 or LEG == 3 ) {
     if(f_angle >= f_angle_offset and f_angle <= f_angle_offset+17.86){
       Serial.println(":hello1;");
@@ -376,14 +375,15 @@ void MGI_calculation(double x, double y){
   }
   
   if (LEG == 0 or LEG == 3){                 
-    MGI_alpha = (f_angle-f_angle_offset)+legsAnglesZero[0];  //DIR
-    MGI_beta = (t_angle_offset-t_angle)+legsAnglesZero[1]; //REV                    
+    MGI_alpha = (f_angle-f_angle_offset);//+legsAnglesZero[0];  //DIR
+    MGI_beta = (t_angle_offset-t_angle);//+legsAnglesZero[1]; //REV                    
   }
   else{
-    MGI_alpha = (f_angle_offset-f_angle)+legsAnglesZero[0];  //REV
-    MGI_beta = (t_angle-t_angle_offset)+legsAnglesZero[1]; //DIR                    
+    MGI_alpha = (f_angle_offset-f_angle);//+legsAnglesZero[0];  //REV
+    MGI_beta = (t_angle-t_angle_offset);//+legsAnglesZero[1]; //DIR                    
   }
-  Serial.println(": alpha"+String(f_angle)+", beta"+String(t_angle)+";");
+  Serial.println(": Real alpha"+String(f_angle)+", beta"+String(t_angle)+";");
+  Serial.println(": Virtual alpha"+String(MGI_alpha)+", beta"+String(MGI_beta)+";");
 }
 
 void getShoulderPosition() {

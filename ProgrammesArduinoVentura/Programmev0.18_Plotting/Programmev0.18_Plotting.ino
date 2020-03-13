@@ -12,7 +12,7 @@
 #include <avr/interrupt.h>
 #include <PID_v1.h>
 //----------------!!!!!Leg choice!!!!!-------------------
-#define LEG 1              // set to 0/1/2/3 accordingly
+#define LEG 0              // set to 0/1/2/3 accordingly
 //----------------output pins----------------------------
 #define A_PWM_PIN  5       // Speed of motor A and B in PWM units, value from 0 to 255
 #define A_EN_PIN   6       // This sets the direction of motor A and B, set to HIGH for outward motion and LOW for inward motion
@@ -64,16 +64,23 @@ double pwmValue[3] = {0, 0, 0};
 int encoderNtours[2] = {0, 0};
 int tryErrorAngle[2] = {0, 0};
 
-int kP = 100;
+int kp_A = 100;
+int ki_A = 0;
+int kd_A = 0;
+
+int kp_B = 100;
+int ki_B = 0;
+int kd_B = 0;
+
 int kP_Shoulder = 100;
 //--------------------PID Lib variables--------------------------
 
 #if LEG==0 or LEG==3
-PID myPIDmotorA(&legsAngles[0], &pwmValue[0], &anglesSetpointsArray[0], kP, 0, 0, DIRECT);  //direction is changed later...
-PID myPIDmotorB(&legsAngles[1], &pwmValue[1], &anglesSetpointsArray[1], kP, 0, 0, REVERSE);  //...according to leg value
+PID myPIDmotorA(&legsAngles[0], &pwmValue[0], &anglesSetpointsArray[0], kp_A,ki_A,kd_A, DIRECT);  //direction is changed later...
+PID myPIDmotorB(&legsAngles[1], &pwmValue[1], &anglesSetpointsArray[1], kp_B,ki_B,kd_B, REVERSE);  //...according to leg value
 #else
-PID myPIDmotorA(&legsAngles[0], &pwmValue[0], &anglesSetpointsArray[0], kP, 0, 0, REVERSE);  //direction is changed later...
-PID myPIDmotorB(&legsAngles[1], &pwmValue[1], &anglesSetpointsArray[1], kP, 0, 0, DIRECT);  //...according to leg value
+PID myPIDmotorA(&legsAngles[0], &pwmValue[0], &anglesSetpointsArray[0], kp_A,ki_A,kd_A, REVERSE);  //direction is changed later...
+PID myPIDmotorB(&legsAngles[1], &pwmValue[1], &anglesSetpointsArray[1], kp_B,ki_B,kd_B, DIRECT);  //...according to leg value
 #endif
 
 PID myPIDmotorC(&shoulderPosition, &pwmValue[2], &shoulderSetpoint, kP_Shoulder, 0, 0, DIRECT);
@@ -180,6 +187,19 @@ ISR(TIMER1_COMPA_vect)  //function executed when timer3 interrupt
   getPosition(0);
   getPosition(1);
   getShoulderPosition();
+  printPlot();
+}
+
+void printPlot(){
+  Serial.print(legsAngles[1]);
+  Serial.print(", ");
+  Serial.println(anglesSetpointsArray[1]);
+  /*
+  Serial.print(", ");
+  Serial.print(legsAngles[1]);
+  Serial.print(", ");
+  Serial.println(anglesSetpointsArray[1]);
+  */
 }
 
 ISR(TIMER4_COMPA_vect)  //function executed when timer4 interrupt
@@ -334,11 +354,11 @@ void turnOnOrOff() {
 }
 
 void moveMotor(int index) {   //apply the pwm calculated by the PID to the motor
-  if (pwmValue[index] > 165) {
+  if (pwmValue[index] > 0) {
     digitalWrite(motorEnablePinsArray[index], 1);
     analogWrite(motorPwmPinsArray[index], pwmValue[index]);
   }
-  else if (pwmValue[index] < -165) {
+  else if (pwmValue[index] < 0) {
     digitalWrite(motorEnablePinsArray[index], 0);
     analogWrite(motorPwmPinsArray[index], -pwmValue[index]);
   }

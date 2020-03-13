@@ -7,12 +7,15 @@
 // !!!!!! Things like minimal angle value (angleZero) or wich PID is reversed due...
 // !!!!!! ...to the way the encoders for angle mesurments are mounted are taken care of.
 
+
+//https://forum.arduino.cc/index.php?topic=396450.0 for communication info
+
 #include <SPI.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <PID_v1.h>
 //----------------!!!!!Leg choice!!!!!-------------------
-#define LEG 1              // set to 0/1/2/3 accordingly
+#define LEG 0              // set to 0/1/2/3 accordingly
 //----------------output pins----------------------------
 #define A_PWM_PIN  5       // Speed of motor A and B in PWM units, value from 0 to 255
 #define A_EN_PIN   6       // This sets the direction of motor A and B, set to HIGH for outward motion and LOW for inward motion
@@ -41,44 +44,40 @@ int motorPwmPinsArray[3] = {A_PWM_PIN, B_PWM_PIN, C_PWM_PIN};
 int motorEnablePinsArray[2] = {A_EN_PIN, B_EN_PIN};
 int encoderCSPinsArray[2] = {A_CS_PIN, B_CS_PIN};
 
-unsigned long Dt = 0;
-unsigned long Mt = 0;
+bool flagOn = 0;                 // to turn on PID and control
 
-bool flagOn = 0;
-
-double legsAngles[2] = {0, 0};   // A, B
+double legsAngles[2] = {0, 0};   // A, B,  measured angle 
 double shoulderPosition = 0; // feedback from shoulder potentiometer
 
 double legsAnglesPrevious[2] = {0, 0};    // memory of previous angle value mesured
 //double shoulderPreviousPosition = 0;
 
-//memory value for the minimal measured angle for motor A and B of each leg (actuator fully retracted)
-double memLegsAnglesZero[8] = {266.13, 54.76, 7.03, 61.79, 313.77, 203.90, 42.63, 235.72};
-double memLegsAnglesMax[8] = {266.13+17.86, 54.76-62.36, 7.03-17.86, 61.79+62.36, 313.77-17.86, 203.90+62.36, 42.63+17.86, 235.72-62.36};
-double legsAnglesZero[2];        //take two (motor A and B) value from the above according to LEG value
-double legsAnglesMax[2];
+double minAngle_virtual = 180;                         //~minimum angle measured when actuator retracted
+double maxAngle_virtual[2] = {180+17.86,180+62.36};    //~max angle measured when actuator fully extended
 double shoulderZeroPosition = 500;
 
-double anglesSetpointsArray[2] = {0, 0};
+double anglesSetpointsArray[2] = {0, 0};               //targeted angular position
 double shoulderSetpoint = 500;
 
-double pwmValue[3] = {0, 0, 0};
-int encoderNtours[2] = {0, 0};
-int tryErrorAngle[2] = {0, 0};
+double pwmValue[3] = {0, 0, 0};                        //0-255
+int tryErrorAngle[2] = {0, 0};                         //to correct eventual angle measurments error
 
-int kP = 100;
-int kP_Shoulder = 100;
+int kp_A = 100;          //PID parameters
+int ki_A = 0;
+int kd_A = 0;
+
+int kp_B = 100;
+int ki_B = 0;
+int kd_B = 0;
+
+int kp_C = 100;
+int ki_C = 0;
+int kd_C = 0;
 //--------------------PID Lib variables--------------------------
 
-#if LEG==0 or LEG==3
-PID myPIDmotorA(&legsAngles[0], &pwmValue[0], &anglesSetpointsArray[0], kP, 0, 0, DIRECT);  //direction is changed later...
-PID myPIDmotorB(&legsAngles[1], &pwmValue[1], &anglesSetpointsArray[1], kP, 0, 0, REVERSE);  //...according to leg value
-#else
-PID myPIDmotorA(&legsAngles[0], &pwmValue[0], &anglesSetpointsArray[0], kP, 0, 0, REVERSE);  //direction is changed later...
-PID myPIDmotorB(&legsAngles[1], &pwmValue[1], &anglesSetpointsArray[1], kP, 0, 0, DIRECT);  //...according to leg value
-#endif
-
-PID myPIDmotorC(&shoulderPosition, &pwmValue[2], &shoulderSetpoint, kP_Shoulder, 0, 0, DIRECT);
+PID myPIDmotorA(&legsAngles[0], &pwmValue[0], &anglesSetpointsArray[0], kp_A, ki_A, kd_A, DIRECT); //create PID for each motor
+PID myPIDmotorB(&legsAngles[1], &pwmValue[1], &anglesSetpointsArray[1], kp_B, ki_B, kd_B, DIRECT); 
+PID myPIDmotorC(&shoulderPosition, &pwmValue[2], &shoulderSetpoint, kp_C, ki_C, kd_C, DIRECT);
 
 //---------------------------------------------------------------
 //---------------data and transmissions variables----------------
@@ -94,16 +93,11 @@ char messageFromPC[numChars] = {0};
 
 boolean newData = false;
 //---------------------------------------------------------------
-double MGI_alpha, MGI_beta;
+double MGI_alpha, MGI_beta;   //MGI gives those angles 
+
 void setup()
 {
-  //---------------------Setting default minimum Angle-----------
-  legsAnglesZero[0] = memLegsAnglesZero[2*LEG];
-  legsAnglesZero[1] = memLegsAnglesZero[2*LEG+1];
-  legsAnglesMax[0] = memLegsAnglesMax[2*LEG];
-  legsAnglesMax[1] = memLegsAnglesMax[2*LEG+1];
-  //-------------------------------------------------------------
-  pinMode(A_CS_PIN, OUTPUT);
+  pinMode(A_CS_PIN, OUTPUT);             // pin setup for drivers and encoders
   pinMode(B_CS_PIN, OUTPUT);
 
   pinMode(A_PWM_PIN, OUTPUT);
@@ -115,7 +109,7 @@ void setup()
   pinMode(C_EN1_PIN, OUTPUT);
   pinMode(C_EN2_PIN, OUTPUT);
 
-  digitalWrite(A_CS_PIN, HIGH); //Slaves encoders de-selected
+  digitalWrite(A_CS_PIN, HIGH);          //Slaves encoders de-selected
   digitalWrite(B_CS_PIN, HIGH);
 
 
@@ -169,31 +163,7 @@ void setup()
   SPI.setClockDivider(SPI_CLOCK_DIV64);
   SPI.end();
   //---------------------------End SPI---------------------------------
-
-  for (int i = 0; i <= 1; i++){
-    getPosition(i);
-    if(legsAnglesZero[i] < legsAnglesMax[i]){
-      if(legsAngles[i] < legsAnglesZero[i]){
-        legsAngles[i] += 360;
-        encoderNtours[i] += 1;
-      } 
-    }
-    else if(legsAnglesZero[i] > legsAnglesMax[i]){
-      if(legsAngles[i] > legsAnglesZero[i]){
-        legsAngles[i] -= 360;
-        encoderNtours[i] -= 1;
-      }
-    }
-    legsAnglesPrevious[i] = legsAngles[i];
-  }
-  /*
-  legsAngles
-  legsAnglesPrevious
-  encoderNtours
-  double memLegsAnglesZero[8] = {266.13, 54.76, 7.03, 61.79, 313.77, 203.90, 42.63, 235.72};
-  double memLegsAnglesMax[8] = {266.13+17.86, 54.76-62.36, 7.03-17.86, 61.79+62.36, 313.77-17.86, 203.90+62.36, 42.63+17.86, 235.72-62.36};
-  */
-  //-----------------------PID Library setup---------------------------
+  //-----------------------Motor PID setup---------------------------
   myPIDmotorA.SetOutputLimits(-255, 255);
   myPIDmotorA.SetSampleTime(0);
   myPIDmotorB.SetOutputLimits(-255, 255);
@@ -214,7 +184,6 @@ ISR(TIMER1_COMPA_vect)  //function executed when timer3 interrupt
 
 ISR(TIMER4_COMPA_vect)  //function executed when timer4 interrupt
 { //PID computation
-  //Serial.println("hello3");
   myPIDmotorA.Compute();
   moveMotor(0);
   myPIDmotorB.Compute();
@@ -261,17 +230,8 @@ void getPosition(int index) {
   ABSposition = temp[0] << 8;    //shift MSB to correct ABSposition in ABSposition message
   ABSposition += temp[1];    // add LSB to ABSposition message to complete message
 
-  legsAngles[index] = (ABSposition * 0.08789) + encoderNtours[index] * 360; // approx 360/4096
-  //--------------Angle Roll-Over Managements-----------
-  if (legsAnglesPrevious[index] - (encoderNtours[index] * 360) > 355 and legsAngles[index] - (encoderNtours[index] * 360) < 5) {
-    legsAngles[index] += 360;
-    encoderNtours[index] += 1;
-  }
-  else if (legsAnglesPrevious[index] - (encoderNtours[index] * 360) < 5 and legsAngles[index] - (encoderNtours[index] * 360) > 355) {
-    legsAngles[index] -= 360;
-    encoderNtours[index] -= 1;
-  }
-  legsAnglesPrevious[index] = legsAngles[index];
+  legsAngles[index] = (ABSposition * 0.08789); // approx 360/4096
+  //-----------no more need for angle Roll-Over managements-----------
 }
 
 void MGD_calculation(){          //Calculating foot (end effector) position based on angle value
@@ -285,15 +245,8 @@ void MGD_calculation(){          //Calculating foot (end effector) position base
   double b1, b2;                 //Tibia lenght projected 1:vertically (Z axis), 2:horizontally (X axis)
   double pos_x, pos_z;           //X and Z axis position of robot foot (end effector)
   
-  a_delta = legsAngles[0]-legsAnglesZero[0];
-  b_delta = legsAngles[1]-legsAnglesZero[1];
-  
-  if (LEG == 0 or LEG == 3){                 //either a or b angle measurment encoder mounted backward...
-    b_delta = -b_delta;                      //...depending on leg, need to adapt calculation acordingly
-  }
-  else{
-    a_delta = -a_delta;
-  }
+  a_delta = legsAngles[0]-minAngle_virtual;
+  b_delta = legsAngles[1]-minAngle_virtual;
   
   a_angle = a_delta+a_angle_offset;
   a1 = sin(a_angle*PI/180)*len_a;
@@ -341,48 +294,25 @@ void MGI_calculation(double x, double y){
   Yg2 = a-((-B-sqrt(Delta))/(2*A))*d;
   //
   f_angle = 180 - (acos((Xg1/len_f))*180/PI);
-  Serial.println(": alpha"+String(f_angle)+", beta"+String(t_angle)+";");
-  if(LEG == 0 or LEG == 3 ) {
+  //Serial.println(": alpha"+String(f_angle)+", beta"+String(t_angle)+";");
+  if(f_angle >= f_angle_offset and f_angle <= f_angle_offset+17.86){
+    //first point is the good solution
+  }
+  else{  //try with the other point
+    f_angle = 180 - (acos(Xg2/len_f)*180/PI);
     if(f_angle >= f_angle_offset and f_angle <= f_angle_offset+17.86){
-      Serial.println(":hello1;");
+      //second point is the good solution
     }
     else{
-      f_angle = 180 - (acos(Xg2/len_f)*180/PI);
-      if(f_angle >= f_angle_offset and f_angle <= f_angle_offset+17.86){
-        Serial.println(":hello2;");
-      }
-      else{
-        Serial.println(":out of bound;");
-      }
+      //no intersection
+      Serial.println(":out of bound;");
     }
   }
-  else if(LEG == 1 or LEG == 2 ){
-    if(f_angle <= f_angle_offset and f_angle >= f_angle_offset-17.86){
-      Serial.println(":hello3;");
-    }
-    else {
-      f_angle = 180 - (acos(Xg2/len_f)*180/PI);
-      if(f_angle <= f_angle_offset and f_angle >= f_angle_offset-17.86){
-        Serial.println(":hello4;");
-      }
-      else{
-        Serial.println(":out of bound;");
-      }
-    }
-  }
-  
-  if (LEG == 0 or LEG == 3){                 
-    MGI_alpha = (f_angle-f_angle_offset)+legsAnglesZero[0];  //DIR
-    MGI_beta = (t_angle_offset-t_angle)+legsAnglesZero[1]; //REV                    
-  }
-  else{
-    MGI_alpha = (f_angle_offset-f_angle)+legsAnglesZero[0];  //REV
-    MGI_beta = (t_angle-t_angle_offset)+legsAnglesZero[1]; //DIR                    
-  }
-  Serial.println(": alpha"+String(f_angle)+", beta"+String(t_angle)+";");
+  MGI_alpha = (f_angle-f_angle_offset)+minAngle_virtual;
+  MGI_beta = (t_angle-t_angle_offset)+minAngle_virtual;
 }
 
-void getShoulderPosition() {
+void getShoulderPosition(){
   shoulderPosition = analogRead(C_POT_PIN);
 }
 
@@ -394,7 +324,7 @@ void IncrSetPoint(int choiceMotor, double choiceAngle) {
 
 void abslSetPoint(int choiceMotor, double choiceAngle) {
   if (flagOn) {
-    anglesSetpointsArray[choiceMotor] = legsAnglesZero[choiceMotor] + choiceAngle;
+    anglesSetpointsArray[choiceMotor] = minAngle_virtual + choiceAngle;
   }
 }
 
@@ -405,32 +335,16 @@ void abslShoulderSetPoint(double choicePosition) {
 }
 
 void turnOnOrOff() {
-  /*
-    }
-  getShoulderPosition();
-  shoulderZeroPosition = shoulderPosition;
-  shoulderSetpoint = shoulderPosition;
-  flagOn = 1;
-  */
   if (flagOn == 0){
     for (int i = 0; i <= 1; i++) {
-      getPosition(i);
       anglesSetpointsArray[i] = legsAngles[i];
-      Serial.println(":pos "+String(i)+" is "+String(legsAnglesZero[i])+" tour -> "+ String(encoderNtours[i])+";");
+      Serial.println(":pos "+String(i)+" is "+String(minAngle_virtual)+";");
     }
     flagOn = 1;
     myPIDmotorA.SetMode(AUTOMATIC);
     myPIDmotorB.SetMode(AUTOMATIC);
     myPIDmotorC.SetMode(AUTOMATIC);
   }
-  /*
-  else{
-    flagOn = 0;
-    myPIDmotorA.SetMode(MANUAL);
-    myPIDmotorB.SetMode(MANUAL);
-    myPIDmotorC.SetMode(MANUAL);
-  }
-  */
 }
 
 void moveMotor(int index) {   //apply the pwm calculated by the PID to the motor
